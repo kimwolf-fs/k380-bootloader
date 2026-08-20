@@ -161,6 +161,15 @@ jobs:
           assert mbr_flash_start == 0
           assert softdevice_hex_end <= softdevice_flash_end
           assert application_start < application_end
+          assert application_start == 0x00026000, (
+              f"unexpected application start: 0x{application_start:08X}"
+          )
+          assert application_end == 0x000EA000, (
+              f"unexpected application end: 0x{application_end:08X}"
+          )
+          assert application_end - application_start == 0x000C4000, (
+              f"unexpected application length: 0x{application_end - application_start:08X}"
+          )
 
           Path("_bin/k380/k380-memory-layout.txt").write_text(
               "mbr_flash_start=0x%08X\n"
