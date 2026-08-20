@@ -1,6 +1,6 @@
 # K380 首版 Bootloader Bring-up 设计
 
-**状态：** 已批准，待实施。
+**状态：** 首版 CI 验证通过，实板验证待执行。
 
 **仓库与分支：** `kimwolf-fs/k380-bootloader` 的 `feat/k380-bootloader-bringup`，完成后合并至
 `k380`。

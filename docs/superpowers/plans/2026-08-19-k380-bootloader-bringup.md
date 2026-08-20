@@ -1,6 +1,6 @@
 # K380 首版 Bootloader Bring-up 实施计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **面向智能代理执行者：** 必须使用子技能：推荐使用 `superpowers:subagent-driven-development`，或使用 `superpowers:executing-plans`，按任务逐项实施本计划。步骤使用复选框（`- [ ]`）跟踪进度。
 
 **目标：** 为 K380 的 nRF52840-QIAA 创建可由 SWD 首刷、提供 USB UF2+CDC 和双击 RESET 进入 UF2 的首版 Adafruit nRF52 Bootloader board，并只通过 GitHub Actions 构建和交付工件。
 
@@ -29,7 +29,7 @@
 - 新建：`src/boards/k380/board.h`
 - 新建：`src/boards/k380/pinconfig.c`
 
-- [ ] **步骤 1：写入 Make 与 CMake 的 nRF52840 board 选择文件**
+- [x] **步骤 1：写入 Make 与 CMake 的 nRF52840 board 选择文件**
 
 `src/boards/k380/board.mk`：
 
@@ -43,7 +43,7 @@ MCU_SUB_VARIANT = nrf52840
 set(MCU_VARIANT nrf52840)
 ```
 
-- [ ] **步骤 2：写入 K380 的板级身份与电源配置**
+- [x] **步骤 2：写入 K380 的板级身份与电源配置**
 
 创建 `src/boards/k380/board.h`，内容如下：
 
@@ -87,7 +87,7 @@ set(MCU_VARIANT nrf52840)
 `DUALBANK_FW`、`FORCE_UF2` 或 `DEFAULT_TO_OTA_DFU` 的定义。前五项会改变 K380 首版硬件资源或
 入口；后三项应继续使用上游默认关闭值。
 
-- [ ] **步骤 3：写入 nRF52840 的 CF2 配置记录**
+- [x] **步骤 3：写入 nRF52840 的 CF2 配置记录**
 
 创建 `src/boards/k380/pinconfig.c`，内容如下：
 
@@ -113,7 +113,7 @@ const uint32_t bootloaderConfig[] =
 };
 ```
 
-- [ ] **步骤 4：执行不依赖交叉编译器的静态检查**
+- [x] **步骤 4：执行不依赖交叉编译器的静态检查**
 
 运行：
 
@@ -125,7 +125,7 @@ if (rg -n 'BUTTON_DFU|BUTTON_DFU_OTA|LED_NEOPIXEL|NEOPIXEL_POWER_PIN|SIGNED_FW|D
 
 预期结果：`git diff --check` 无输出且退出码为 0；第二条命令显示 10 个预期宏；第三条命令无输出且退出码为 0。
 
-- [ ] **步骤 5：提交 board 配置**
+- [x] **步骤 5：提交 board 配置**
 
 ```powershell
 git add src/boards/k380
@@ -141,7 +141,7 @@ git commit -m "feat(k380): add nrf52840 bootloader board"
 - 依赖：`src/boards/k380/board.mk`
 - 依赖：`Makefile`
 
-- [ ] **步骤 1：写入 K380 专用工作流**
+- [x] **步骤 1：写入 K380 专用工作流**
 
 创建 `.github/workflows/k380-bootloader.yml`，内容如下：
 
@@ -278,7 +278,7 @@ jobs:
 该工作流不能调用 `python3 tools/build_all.py`，也不能修改 `.github/workflows/githubci.yml` 的上游全 board
 矩阵。K380 仅在针对 `k380` 的 pull request、`k380` 分支推送或手动触发时构建。
 
-- [ ] **步骤 2：检查 workflow 结构和工件模式**
+- [x] **步骤 2：检查 workflow 结构和工件模式**
 
 运行：
 
@@ -289,7 +289,7 @@ rg -n 'make BOARD=k380 (all|copy-artifact)|k380_bootloader-\*\.out\.map|update-k
 
 预期结果：`git diff --check` 无输出且退出码为 0；`rg` 显示 K380 构建、map 复制、自更新 UF2 检查、内存布局证据和 artifact 上传五类语句。
 
-- [ ] **步骤 3：提交 K380 CI**
+- [x] **步骤 3：提交 K380 CI**
 
 ```powershell
 git add .github/workflows/k380-bootloader.yml
@@ -304,7 +304,7 @@ git commit -m "ci(k380): build and publish bootloader artifacts"
 - 验证：`.github/workflows/k380-bootloader.yml`
 - 验证：`src/boards/k380/`
 
-- [ ] **步骤 1：推送功能分支并创建针对 `k380` 的 pull request**
+- [x] **步骤 1：推送功能分支并创建针对 `k380` 的 pull request**
 
 运行：
 
@@ -317,7 +317,7 @@ git push -u origin feat/k380-bootloader-bringup
 预期结果：pull request 的 Checks 中出现名为 `K380 Bootloader` 的 workflow；该 workflow 使用
 `make BOARD=k380 all`，不要求开发机安装 Arm GCC、nrfjprog 或任何 Python 包。
 
-- [ ] **步骤 2：检查 GitHub Actions 的构建日志**
+- [x] **步骤 2：检查 GitHub Actions 的构建日志**
 
 在该 pull request 的 `K380 Bootloader` workflow 中确认下列命令均成功：
 
@@ -329,7 +329,7 @@ make BOARD=k380 copy-artifact
 预期结果：`Build K380 Bootloader` 成功；日志显示 nRF52840、S140 `6.1.1`，且没有
 `DEFAULT_TO_OTA_DFU`、签名固件或 dual-bank 的 K380 专用启用记录。
 
-- [ ] **步骤 3：检查上传的 artifact 内容**
+- [x] **步骤 3：检查上传的 artifact 内容**
 
 下载名为 `k380-bootloader` 的 artifact，确认压缩包中至少包含以下文件模式：
 
@@ -369,7 +369,7 @@ git log --oneline k380..HEAD
 - 输入：GitHub artifact 中的 `k380-memory-layout.txt`
 - 修改（仅在完成 map 审核后）：`E:\project\k380-keyboard\zmk\docs\k380\hardware-contract.md`
 
-- [ ] **步骤 1：从 map 确认 Bootloader 保留区域**
+- [x] **步骤 1：从 map 确认 Bootloader 保留区域**
 
 在下载后的 artifact 目录中运行：
 
@@ -389,7 +389,7 @@ BOOTLOADER_SETTINGS   0x000ff000  0x00001000
 这些地址与 `linker/nrf52840.ld` 的保留区定义一致。该步骤只确认 Bootloader 侧的保留区；
 `0x000F4000` 是 Bootloader 区起点，不是 ZMK 可写应用末端。
 
-- [ ] **步骤 2：读取 CI 生成的应用 Flash 边界证据**
+- [x] **步骤 2：读取 CI 生成的应用 Flash 边界证据**
 
 在同一成功构建下载的 artifact 目录中运行：
 
