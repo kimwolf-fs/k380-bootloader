@@ -1,0 +1,217 @@
+name: K380 Bootloader
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [k380]
+    paths:
+      - ".github/workflows/k380-bootloader.yml"
+      - "src/**"
+      - "linker/**"
+      - "lib/uf2/**"
+      - "tools/**"
+      - "Makefile"
+      - "CMakeLists.txt"
+      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
+  push:
+    branches: [k380]
+    paths:
+      - ".github/workflows/k380-bootloader.yml"
+      - "src/**"
+      - "linker/**"
+      - "lib/uf2/**"
+      - "tools/**"
+      - "Makefile"
+      - "CMakeLists.txt"
+      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install ARM GCC
+        uses: carlosperate/arm-none-eabi-gcc-action@98c40e51546516419841748d3210c290df0d2c6c # v1
+        with:
+          release: "12.3.Rel1"
+
+      - name: Install Python tools
+        run: >-
+          pip3 install
+          adafruit-nrfutil==0.5.3.post16
+          uritemplate==4.2.0
+          requests==2.31.0
+          intelhex==2.3.0
+          setuptools==68.1.2
+
+      - name: Build K380 Bootloader
+        run: |
+          set -euxo pipefail
+          make BOARD=k380 all
+          make BOARD=k380 copy-artifact
+
+      - name: Collect and validate artifacts
+        run: |
+          set -euxo pipefail
+          mkdir -p _bin/k380
+          cp _build/build-k380/k380_bootloader-*.hex _bin/k380/
+          cp _build/build-k380/k380_bootloader-*.out.map _bin/k380/
+          python3 - <<'PY'
+          import ast
+          import re
+          import subprocess
+          from pathlib import Path
+
+          from intelhex import IntelHex
+
+          def make_value(name):
+              output = subprocess.run(
+                  ["make", "-s", "BOARD=k380", f"print-{name}"],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout.strip()
+              match = re.fullmatch(rf"{re.escape(name)} = (.+)", output)
+              assert match, f"unexpected make output for {name}: {output!r}"
+              return match.group(1)
+
+
+          def integer_expression(value):
+              tree = ast.parse(value, mode="eval")
+
+              def evaluate(node):
+                  if isinstance(node, ast.Constant) and isinstance(node.value, int):
+                      return node.value
+                  if isinstance(node, ast.BinOp):
+                      left = evaluate(node.left)
+                      right = evaluate(node.right)
+                      if isinstance(node.op, ast.Add):
+                          return left + right
+                      if isinstance(node.op, ast.Sub):
+                          return left - right
+                      if isinstance(node.op, ast.Mult):
+                          return left * right
+                  raise ValueError(f"unsupported integer expression: {value!r}")
+
+              return evaluate(tree.body)
+
+
+          mcu_sub_variant = make_value("MCU_SUB_VARIANT")
+          sd_name = make_value("SD_NAME")
+          sd_version = make_value("SD_VERSION")
+          sd_filename = make_value("SD_FILENAME")
+          sd_hex_path = Path(make_value("SD_HEX"))
+          ld_file = Path(make_value("LD_FILE"))
+          dfu_app_data_reserved = integer_expression(
+              make_value("DFU_APP_DATA_RESERVED")
+          )
+
+          assert mcu_sub_variant == "nrf52840"
+          assert (sd_name, sd_version) == ("s140", "6.1.1")
+          assert sd_hex_path.name == f"{sd_filename}_softdevice.hex"
+          assert ld_file == Path("linker/nrf52840.ld")
+
+          sdk_include = sd_hex_path.parent / f"{sd_filename}_API" / "include"
+          mbr_header = (sdk_include / "nrf52" / "nrf_mbr.h").read_text(
+              encoding="ascii"
+          )
+          sdm_header = (sdk_include / "nrf_sdm.h").read_text(encoding="ascii")
+          linker_script = ld_file.read_text(encoding="ascii")
+
+          mbr_size = int(
+              re.search(r"^#define MBR_SIZE\s+\((0x[0-9A-Fa-f]+)\)", mbr_header, re.M)
+              .group(1),
+              0,
+          )
+          softdevice_size = int(
+              re.search(
+                  r"^#define SD_FLASH_SIZE\s+(0x[0-9A-Fa-f]+)", sdm_header, re.M
+              ).group(1),
+              0,
+          )
+          bootloader_region_start = int(
+              re.search(
+                  r"FLASH\s+\(rx\)\s*:\s+ORIGIN\s*=\s*(0x[0-9A-Fa-f]+)",
+                  linker_script,
+              ).group(1),
+              0,
+          )
+
+          softdevice_hex = IntelHex(str(sd_hex_path))
+          mbr_flash_start = softdevice_hex.minaddr()
+          mbr_flash_end = mbr_flash_start + mbr_size
+          softdevice_flash_start = mbr_flash_end
+          softdevice_flash_end = softdevice_flash_start + softdevice_size
+          softdevice_hex_end = softdevice_hex.maxaddr() + 1
+          application_start = softdevice_flash_end
+          application_end = bootloader_region_start - dfu_app_data_reserved
+
+          assert mbr_flash_start == 0
+          assert softdevice_hex_end <= softdevice_flash_end
+          assert application_start < application_end
+          assert application_start == 0x00026000, (
+              f"unexpected application start: 0x{application_start:08X}"
+          )
+          assert application_end == 0x000EA000, (
+              f"unexpected application end: 0x{application_end:08X}"
+          )
+          assert application_end - application_start == 0x000C4000, (
+              f"unexpected application length: 0x{application_end - application_start:08X}"
+          )
+
+          Path("_bin/k380/k380-memory-layout.txt").write_text(
+              "mbr_flash_start=0x%08X\n"
+              "mbr_flash_end=0x%08X\n"
+              "s140_6.1.1_flash_start=0x%08X\n"
+              "s140_6.1.1_flash_end=0x%08X\n"
+              "s140_6.1.1_hex_data_end=0x%08X\n"
+              "bootloader_region_start=0x%08X\n"
+              "dfu_app_data_reserved=0x%08X\n"
+              "zmk_application_flash_start=0x%08X\n"
+              "zmk_application_flash_end=0x%08X\n"
+              "zmk_application_flash_length=0x%08X\n"
+              % (
+                  mbr_flash_start,
+                  mbr_flash_end,
+                  softdevice_flash_start,
+                  softdevice_flash_end,
+                  softdevice_hex_end,
+                  bootloader_region_start,
+                  dfu_app_data_reserved,
+                  application_start,
+                  application_end,
+                  application_end - application_start,
+              ),
+              encoding="ascii",
+          )
+          PY
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.hex' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'update-k380_bootloader-*_nosd.uf2' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.zip' -print -quit)"
+          raw_hex_count="$(find _bin/k380 -maxdepth 1 -type f \
+            -name 'k380_bootloader-*.hex' \
+            ! -name '*_nosd.hex' \
+            ! -name '*_s140_*.hex' | wc -l)"
+          test "$raw_hex_count" -eq 1
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*.out.map' -print -quit)"
+          test -s _bin/k380/k380-memory-layout.txt
+          find _bin/k380 -maxdepth 1 -type f -printf '%f\n' | sort
+
+      - name: Upload K380 Bootloader artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: k380-bootloader
+          path: _bin/k380
+          if-no-files-found: error
