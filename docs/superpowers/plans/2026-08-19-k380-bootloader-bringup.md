@@ -215,31 +215,41 @@ jobs:
 
           from intelhex import IntelHex
 
-          softdevice = IntelHex(
+          softdevice_hex = IntelHex(
               "lib/softdevice/s140_nrf52_6.1.1/s140_nrf52_6.1.1_softdevice.hex"
           )
-          softdevice_start = softdevice.minaddr()
-          softdevice_end = softdevice.maxaddr() + 1
+          mbr_flash_start = 0x00000000
+          mbr_flash_end = 0x00001000
+          softdevice_flash_start = mbr_flash_end
+          softdevice_flash_end = softdevice_flash_start + 0x00025000
+          softdevice_hex_start = softdevice_hex.minaddr()
+          softdevice_hex_end = softdevice_hex.maxaddr() + 1
           bootloader_region_start = 0x000F4000
           dfu_app_data_reserved = 10 * 4096
-          application_start = softdevice_end
+          application_start = softdevice_flash_end
           application_end = bootloader_region_start - dfu_app_data_reserved
 
-          assert softdevice_start == 0x00001000
-          assert softdevice_end == 0x00026000
+          assert softdevice_hex_start == mbr_flash_start
+          assert softdevice_hex_end <= softdevice_flash_end
           assert application_start < application_end
 
           Path("_bin/k380/k380-memory-layout.txt").write_text(
+              "mbr_flash_start=0x%08X\n"
+              "mbr_flash_end=0x%08X\n"
               "s140_6.1.1_flash_start=0x%08X\n"
               "s140_6.1.1_flash_end=0x%08X\n"
+              "s140_6.1.1_hex_data_end=0x%08X\n"
               "bootloader_region_start=0x%08X\n"
               "dfu_app_data_reserved=0x%08X\n"
               "zmk_application_flash_start=0x%08X\n"
               "zmk_application_flash_end=0x%08X\n"
               "zmk_application_flash_length=0x%08X\n"
               % (
-                  softdevice_start,
-                  softdevice_end,
+                  mbr_flash_start,
+                  mbr_flash_end,
+                  softdevice_flash_start,
+                  softdevice_flash_end,
+                  softdevice_hex_end,
                   bootloader_region_start,
                   dfu_app_data_reserved,
                   application_start,
@@ -388,11 +398,14 @@ Get-Content '.\k380-memory-layout.txt'
 Get-FileHash '.\k380_bootloader-*.out.map' -Algorithm SHA256
 ```
 
-预期结果：文件内容为：
+预期结果：文件内容包含下列边界：
 
 ```text
+mbr_flash_start=0x00000000
+mbr_flash_end=0x00001000
 s140_6.1.1_flash_start=0x00001000
 s140_6.1.1_flash_end=0x00026000
+s140_6.1.1_hex_data_end=0x00025DE8
 bootloader_region_start=0x000F4000
 dfu_app_data_reserved=0x0000A000
 zmk_application_flash_start=0x00026000
@@ -401,7 +414,9 @@ zmk_application_flash_length=0x000C4000
 ```
 
 保存 `k380-memory-layout.txt`、map 的 SHA-256、构建提交 SHA、workflow run 编号和 artifact 名称。
-`0x000EA000` 是上游 USB UF2 的 `USER_FLASH_END`，由
+S140 的 HEX 同时携带 MBR，故其实际数据从 `0x00000000` 开始；`s140_6.1.1_hex_data_end` 是
+原始 HEX 的末端，S140 以 4 KiB MBR 加 `SD_FLASH_SIZE=0x25000` 预留至页边界
+`0x00026000`，该地址才是应用起点。`0x000EA000` 是上游 USB UF2 的 `USER_FLASH_END`，由
 `BOOTLOADER_REGION_START - DFU_APP_DATA_RESERVED` 计算得到；`0x000EA000` 至 `0x000F4000`
 的 40 KiB 是上游保留的应用数据区，不能分配给 ZMK。Bootloader settings 和 MBR 参数页也不属于应用。
 
