@@ -1,0 +1,117 @@
+name: K380 Bootloader
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [k380]
+    paths:
+      - ".github/workflows/k380-bootloader.yml"
+      - "src/**"
+      - "linker/**"
+      - "lib/uf2/**"
+      - "tools/**"
+      - "Makefile"
+      - "CMakeLists.txt"
+      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
+  push:
+    branches: [k380]
+    paths:
+      - ".github/workflows/k380-bootloader.yml"
+      - "src/**"
+      - "linker/**"
+      - "lib/uf2/**"
+      - "tools/**"
+      - "Makefile"
+      - "CMakeLists.txt"
+      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Install ARM GCC
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: "12.3.Rel1"
+
+      - name: Install Python tools
+        run: pip3 install adafruit-nrfutil uritemplate requests intelhex setuptools
+
+      - name: Build K380 Bootloader
+        run: |
+          set -euxo pipefail
+          make BOARD=k380 all
+          make BOARD=k380 copy-artifact
+
+      - name: Collect and validate artifacts
+        run: |
+          set -euxo pipefail
+          mkdir -p _bin/k380
+          cp _build/build-k380/k380_bootloader-*.hex _bin/k380/
+          cp _build/build-k380/k380_bootloader-*.out.map _bin/k380/
+          python3 - <<'PY'
+          from pathlib import Path
+
+          from intelhex import IntelHex
+
+          softdevice = IntelHex(
+              "lib/softdevice/s140_nrf52_6.1.1/s140_nrf52_6.1.1_softdevice.hex"
+          )
+          softdevice_start = softdevice.minaddr()
+          softdevice_end = softdevice.maxaddr() + 1
+          bootloader_region_start = 0x000F4000
+          dfu_app_data_reserved = 10 * 4096
+          application_start = softdevice_end
+          application_end = bootloader_region_start - dfu_app_data_reserved
+
+          assert softdevice_start == 0x00001000
+          assert softdevice_end == 0x00026000
+          assert application_start < application_end
+
+          Path("_bin/k380/k380-memory-layout.txt").write_text(
+              "s140_6.1.1_flash_start=0x%08X\n"
+              "s140_6.1.1_flash_end=0x%08X\n"
+              "bootloader_region_start=0x%08X\n"
+              "dfu_app_data_reserved=0x%08X\n"
+              "zmk_application_flash_start=0x%08X\n"
+              "zmk_application_flash_end=0x%08X\n"
+              "zmk_application_flash_length=0x%08X\n"
+              % (
+                  softdevice_start,
+                  softdevice_end,
+                  bootloader_region_start,
+                  dfu_app_data_reserved,
+                  application_start,
+                  application_end,
+                  application_end - application_start,
+              ),
+              encoding="ascii",
+          )
+          PY
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.hex' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'update-k380_bootloader-*_nosd.uf2' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.zip' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*.hex' -print -quit)"
+          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*.out.map' -print -quit)"
+          test -s _bin/k380/k380-memory-layout.txt
+          find _bin/k380 -maxdepth 1 -type f -printf '%f\n' | sort
+
+      - name: Upload K380 Bootloader artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k380-bootloader
+          path: _bin/k380
+          if-no-files-found: error
