@@ -1,9 +1,9 @@
 # K380 首版 Bootloader Bring-up 设计
 
-**状态：** 首版 CI 验证通过，实板验证待执行。
+**状态：** 首版 CI 验证和 ZMK 分区对接已完成；实板验证待执行。
 
-**仓库与分支：** `kimwolf-fs/k380-bootloader` 的 `feat/k380-bootloader-bringup`，完成后合并至
-`k380`。
+**仓库与分支：** `kimwolf-fs/k380-bootloader` 的 `feat/k380-bootloader-bringup` 已合并至
+`k380`（合并提交 `476577baf9134af8373f420d88a46e3ca2d4d5d9`）。
 
 ## 目标
 
@@ -11,8 +11,9 @@
 首版必须提供 USB UF2+CDC、双击 RESET 进入 UF2、ZMK `&bootloader` 进入 UF2 所需的基础
 兼容性，以及可供后续 ZMK board 使用的实际 linker map。
 
-首版完成的判据是：GitHub Actions 成功构建并上传工件；实板经 SWD 首刷后可枚举 USB，
-可通过 RESET 测试点双击进入 UF2，且可从 linker map 确认应用 Flash 边界。
+已完成的首版判据是：GitHub Actions 成功构建并上传工件，且 linker map 已确认应用 Flash
+边界。实板经 SWD 首刷后可枚举 USB、可通过 RESET 测试点双击进入 UF2，仍是必须保留的
+延期验证，不能由 CI 结果替代。
 
 ## 范围
 
@@ -94,23 +95,25 @@ DCDC1 启用。
 
 ## Flash 边界门禁
 
-不得在本设计、board 文件或 ZMK 仓库中猜测应用 Flash 起始地址和长度。
+不得在本设计、board 文件或 ZMK 仓库中猜测应用 Flash 起始地址和长度。该门禁已由 K380
+Bootloader CI 工件满足。
 
-首次成功构建后，必须从 K380 Bootloader 的 linker map 提取：
+K380 Bootloader 的 linker map 已确认：
 
-- S140 与 MBR 占用范围。
-- 应用可写 Flash 起始地址。
-- 应用可写 Flash 结束地址和长度。
-- Bootloader 区域与 Bootloader settings 保留范围。
+- MBR 与 S140 6.1.1 占用 `0x00000000..0x00026000`。
+- ZMK 可写应用窗口为 `0x00026000..0x000EA000`，长度 `0x000C4000`。
+- Adafruit DFU/UF2 应用保存数据保留区为 `0x000EA000..0x000F4000`。
+- Bootloader 和其配置页占用 `0x000F4000..0x00100000`。
 
-这些值回填到 ZMK 仓库的 `docs/k380/hardware-contract.md`，再创建 ZMK 的
-`fixed-partitions`。在此之前不得创建或发布 K380 ZMK 应用 UF2。
+这些值已回填到 ZMK 仓库的 `docs/k380/hardware-contract.md`，并已用于 K380 的
+`fixed-partitions`。ZMK CI 继续负责检查生成的 DTS、内部 Flash HEX 和应用 UF2 不越过
+该应用窗口。
 
 ## GitHub Actions
 
 用户不在本地安装交叉编译工具链。K380 Bootloader 的构建验证仅在 GitHub Actions 执行。
 
-新增 K380 专用工作流，触发条件为：
+已新增 K380 专用工作流，触发条件为：
 
 - 推送到 `k380`。
 - 针对 `k380` 的 pull request。
@@ -125,7 +128,8 @@ DCDC1 启用。
 - 原始 bootloader `.hex`。
 - linker `.map`。
 
-首版 CI 不构建 ZMK board，也不宣称已验证实体矩阵、低电量、WS2812B 灯效或应用分区。
+首版 CI 不构建 ZMK board，也不宣称已验证实体矩阵、低电量或 WS2812B 灯效。应用分区已由
+独立 ZMK CI 验证，实板应用 UF2 行为仍未验证。
 
 ## 实板验证顺序
 
@@ -134,17 +138,19 @@ DCDC1 启用。
 3. 使用 USB-C 确认 UF2+CDC 枚举的 VID/PID 为 `0x303A:0x1011`。
 4. 确认 CDC-only 路径的 VID/PID 为 `0x303A:0x1012`。
 5. 通过 RESET 测试点双击进入 UF2+CDC。
-6. 保存 linker map 的应用边界，并回填 ZMK 硬件契约。
+6. 应用 Flash 边界已记录在 ZMK 硬件契约；实板验证完成后记录使用的工件、测量值、枚举
+   结果和异常项。
 
 LED4 灯效、ZMK `&bootloader`、应用 UF2 跳转和电池模式验证属于后续阶段，必须在 ZMK
 board 和应用分区参数已存在后验证。
 
 ## 后续阶段
 
-首版 Bootloader 通过后，按以下顺序继续：
+首版 Bootloader 的源码、CI 和 ZMK 分区对接均已完成。本仓库在实板可用前不再需要新增
+功能性改动。后续工作按以下顺序继续：
 
-1. 将 linker map 的应用边界写入 ZMK 硬件契约。
-2. 创建 K380 ZMK board 与 `fixed-partitions`。
-3. 接入 8x15 无二极管矩阵、matrix transform 和默认 keymap。
-4. 为 Bootloader 单独实现 LED4 状态灯。
-5. 完成 USB、低电量、蓝牙槽位和 LED4 的整机实板验证。
+1. 使用已发布的 merged HEX 执行 Bootloader 的 SWD、USB 枚举和 RESET 双击实板验证。
+2. 在实板上验证 ZMK `&bootloader` 进入 UF2，以及应用 UF2 写入和重新启动。
+3. 为 Bootloader 单独设计并实现 LED4 状态灯；该阶段必须先确认状态灯时序、颜色和亮度
+   上限。
+4. 完成 USB、电源、电池、蓝牙槽位、矩阵和 LED4 的整机实板验证。

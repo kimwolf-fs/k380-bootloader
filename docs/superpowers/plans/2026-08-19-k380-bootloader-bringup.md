@@ -350,7 +350,7 @@ k380-memory-layout.txt
 - 非 merged 的 `k380_bootloader-*.hex` 和 `.out.map` 均存在，供首刷诊断和应用分区分析使用。
 - `k380-memory-layout.txt` 由 CI 解析实际 S140 6.1.1 HEX，并记录 ZMK 分区计算所需的输入与结果。
 
-- [ ] **步骤 4：在 GitHub 验证成功后提交或合并前的最终检查**
+- [x] **步骤 4：在 GitHub 验证成功后提交或合并前的最终检查**
 
 运行：
 
@@ -359,8 +359,9 @@ git status --short
 git log --oneline k380..HEAD
 ```
 
-预期结果：工作区干净，分支相对于 `k380` 只包含 `feat(k380): add nrf52840 bootloader board` 和
-`ci(k380): build and publish bootloader artifacts` 两个实施提交；设计和本计划提交不计入此处的代码实施提交。
+实际结果：功能分支已合并至 `k380`，合并提交为
+`476577baf9134af8373f420d88a46e3ca2d4d5d9`。该分支包含 K380 board、K380 专用 CI、
+构建工件和内存布局验证；合并后的 `k380` 工作区保持干净。
 
 ## 任务 4：以首次成功构建的 linker map 和内存布局证据作为 ZMK 分区门禁
 
@@ -420,7 +421,7 @@ S140 的 HEX 同时携带 MBR，故其实际数据从 `0x00000000` 开始；`s14
 `BOOTLOADER_REGION_START - DFU_APP_DATA_RESERVED` 计算得到；`0x000EA000` 至 `0x000F4000`
 的 40 KiB 是上游保留的应用数据区，不能分配给 ZMK。Bootloader settings 和 MBR 参数页也不属于应用。
 
-- [ ] **步骤 3：创建独立 ZMK 分区变更，不在本分支预写数值**
+- [x] **步骤 3：创建独立 ZMK 分区变更，不在本分支预写数值**
 
 在 map 审核完成后，在 `E:\project\k380-keyboard\zmk` 从 `k380` 创建新的功能分支：
 
@@ -429,9 +430,16 @@ git -C E:\project\k380-keyboard\zmk switch k380
 git -C E:\project\k380-keyboard\zmk switch -c feat/k380-flash-partitions
 ```
 
-预期结果：该新分支先将已审核的 map 与 `k380-memory-layout.txt` 证据、应用 Flash 区间
-`0x00026000` 至 `0x000EA000`（长度 `0x000C4000`）写入 `docs/k380/hardware-contract.md`，再单独创建
-ZMK `fixed-partitions`。本 Bootloader bring-up 分支不在 ZMK 仓库中创建分区文件。
+实际结果：ZMK 已在独立变更中将已审核的 map 与 `k380-memory-layout.txt` 证据、应用 Flash
+区间 `0x00026000..0x000EA000`（长度 `0x000C4000`）记录到
+`docs/k380/hardware-contract.md`，并单独创建 K380 `fixed-partitions`。ZMK CI 检查生成
+DTS、内部 Flash HEX 和应用 UF2 均不越过该窗口；本 Bootloader 仓库未创建 ZMK 分区文件。
+
+## 本仓库收尾状态
+
+K380 Bootloader 的 board 配置、专用 CI、工件交付、linker map 审核及 ZMK 分区门禁均已完成。
+本阶段没有待实现的 Bootloader 源码、链接器或 CI 功能。下列实板验证保留为未完成任务，不得
+因 CI 或跨仓库构建成功而勾选。
 
 ## 实板验证边界
 
