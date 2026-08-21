@@ -444,6 +444,10 @@ K380 Bootloader 的 board 配置、专用 CI、工件交付、linker map 审核�
 ## 实板验证边界
 
 本实施计划的 GitHub Actions 只能证明 K380 Bootloader 可构建并产生完整工件，不能证明硬件行为已经通过。
+每次实板验证必须使用
+[`docs/k380/bootloader-hardware-validation.md`](../../k380/bootloader-hardware-validation.md) 记录
+GitHub Actions run、artifact、merged HEX SHA-256、命令输出、测量值和失败现象。该记录初始状态为
+“未执行”；完成某项实板操作后才能更新对应结果。
 在合并至 `k380` 后，使用 artifact 的 merged HEX 按以下顺序执行实板 bring-up：
 
 1. 通过 SWD 擦除并首刷 merged `*_s140_6.1.1.hex`。
