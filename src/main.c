@@ -97,7 +97,7 @@ extern void tusb_hal_nrf_power_event(uint32_t event);
  * - DFU_MAGIC_OTA_RESET         : entered by soft reset, SD is not inited yet
  * - DFU_MAGIC_SERIAL_ONLY_RESET : with CDC interface only
  * - DFU_MAGIC_UF2_RESET         : with CDC and MSC interfaces
- * - DFU_MAGIC_SKIP              : skip DFU entirely including double reset delay,
+ * - DFU_MAGIC_SKIP              : skip DFU entirely including any DFU startup delay,
  *                                 Can be used with systemoff or quick reset to app
  *
  * Note: for DFU_MAGIC_OTA_APPJUM Softdevice must not initialized.
@@ -109,17 +109,9 @@ extern void tusb_hal_nrf_power_event(uint32_t event);
 #define DFU_MAGIC_UF2_RESET             0x57
 #define DFU_MAGIC_SKIP                  0x6d
 
-#define DFU_DBL_RESET_MAGIC             0x5A1AD5      // SALADS
-#define DFU_DBL_RESET_APP               0x4ee5677e
-#define DFU_DBL_RESET_DELAY             500
-#define DFU_DBL_RESET_MEM               0x20007F7C
-
 #define BOOTLOADER_VERSION_REGISTER     NRF_TIMER2->CC[0]
-#define DFU_SERIAL_STARTUP_INTERVAL     1000
-
-// Allow for using reset button essentially to swap between application and bootloader.
 // This is controlled by a flag in the app and is the behavior of CPX and all Arcade boards when using MakeCode.
-// DFU_DBL_RESET magic is used to determined which mode is entered
+// The application can request bootloader entry without changing bootloader startup logic.
 #define APP_ASKS_FOR_SINGLE_TAP_RESET() (*((uint32_t*)(DFU_BANK_0_REGION_START + 0x200)) == 0x87eeb07c)
 
 #define BLEGAP_EVENT_LENGTH             12
@@ -129,8 +121,6 @@ extern void tusb_hal_nrf_power_event(uint32_t event);
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
-uint32_t* dbl_reset_mem = ((uint32_t*) DFU_DBL_RESET_MEM);
-
 // true if ble, false if serial
 bool _ota_dfu = false;
 bool _ota_connected = false;
@@ -143,6 +133,21 @@ bool is_ota(void) {
 
 static void check_dfu_mode(void);
 static uint32_t ble_stack_init(void);
+
+static bool k380_del_recovery_pressed(void) {
+#if defined(K380_RECOVERY_ROW_PIN) && defined(K380_RECOVERY_COL_PIN)
+  nrf_gpio_cfg_input(K380_RECOVERY_COL_PIN, NRF_GPIO_PIN_PULLDOWN);
+  nrf_gpio_cfg_output(K380_RECOVERY_ROW_PIN);
+  nrf_gpio_pin_set(K380_RECOVERY_ROW_PIN);
+  NRFX_DELAY_US(100);
+  bool const pressed = nrf_gpio_pin_read(K380_RECOVERY_COL_PIN) ? true : false;
+  nrf_gpio_cfg_default(K380_RECOVERY_ROW_PIN);
+  nrf_gpio_cfg_default(K380_RECOVERY_COL_PIN);
+  return pressed;
+#else
+  return false;
+#endif
+}
 
 // The SoftDevice must only be initialized if a chip reset has occurred.
 // Soft reset (jump ) from application must not reinitialize the SoftDevice.
@@ -219,9 +224,6 @@ int main(void) {
       disable_softdevice();
     }
 
-    // clear in case we kept DFU_DBL_RESET_APP there
-    (*dbl_reset_mem) = 0;
-
     // start application
     PRINTF("Starting app...\r\n");
     bootloader_app_start();
@@ -252,11 +254,8 @@ static void check_dfu_mode(void) {
   bool const uf2_dfu         = (gpregret == DFU_MAGIC_UF2_RESET);
   bool const dfu_skip        = (gpregret == DFU_MAGIC_SKIP);
 
-  bool const reason_reset_pin = (NRF_POWER->RESETREAS & POWER_RESETREAS_RESETPIN_Msk) ? true : false;
-
   // start either serial, uf2 or ble
-  bool dfu_start = _ota_dfu || serial_only_dfu || uf2_dfu ||
-                   (((*dbl_reset_mem) == DFU_DBL_RESET_MAGIC) && reason_reset_pin);
+  bool dfu_start = _ota_dfu || serial_only_dfu || uf2_dfu;
 
   // Clear GPREGRET if it is our values
   if (dfu_start || dfu_skip) {
@@ -268,7 +267,9 @@ static void check_dfu_mode(void) {
     return;
   }
 
-  /*------------- Determine DFU mode (Serial, OTA, FRESET or normal) -------------*/
+  dfu_start = dfu_start || k380_del_recovery_pressed();
+
+  /*------------- Determine DFU mode (Serial, OTA or normal) -------------*/
   // DFU button pressed
 #if defined(BUTTON_DFU)
   dfu_start = dfu_start || button_pressed(BUTTON_DFU);
@@ -280,9 +281,8 @@ static void check_dfu_mode(void) {
 #endif
 
   bool const valid_app = bootloader_app_is_valid();
-  bool const just_start_app = valid_app && !dfu_start && (*dbl_reset_mem) == DFU_DBL_RESET_APP;
 
-  if (!just_start_app && APP_ASKS_FOR_SINGLE_TAP_RESET()) {
+  if (APP_ASKS_FOR_SINGLE_TAP_RESET()) {
     dfu_start = 1;
   }
 
@@ -295,31 +295,6 @@ static void check_dfu_mode(void) {
     _ota_dfu = 1;
   }
 #endif
-
-  // App mode: Double Reset detection or DFU startup for nrf52832
-  if (!(just_start_app || dfu_start || !valid_app)) {
-#ifdef NRF52832_XXAA
-    /* Even DFU is not active, we still force an 1000 ms dfu serial mode when startup
-     * to support auto programming from Arduino IDE
-     * Note: Double Reset WONT work with nrf52832 since all its SRAM got cleared with GPIO reset. */
-    bootloader_dfu_start(false, DFU_SERIAL_STARTUP_INTERVAL, false);
-#else
-    // Note: RESETREAS is not clear by bootloader, it should be cleared by application upon init()
-    if (reason_reset_pin) {
-      // Register our first reset for double reset detection
-      (*dbl_reset_mem) = DFU_DBL_RESET_MAGIC;
-
-      // if RST is pressed during this delay (double reset)--> if will enter dfu
-      NRFX_DELAY_MS(DFU_DBL_RESET_DELAY);
-    }
-#endif
-  }
-
-  if (APP_ASKS_FOR_SINGLE_TAP_RESET()) {
-    (*dbl_reset_mem) = DFU_DBL_RESET_APP;
-  } else {
-    (*dbl_reset_mem) = 0;
-  }
 
   // Enter DFU mode accordingly to input
   if (dfu_start || !valid_app) {
@@ -334,13 +309,8 @@ static void check_dfu_mode(void) {
     }
 
     // Initiate an update of the firmware.
-    if (APP_ASKS_FOR_SINGLE_TAP_RESET() || uf2_dfu || serial_only_dfu) {
-      // If USB is not enumerated in 3s (eg. because we're running on battery), we restart into app.
-      bootloader_dfu_start(_ota_dfu, 3000, true);
-    } else {
-      // No timeout if bootloader requires user action (double-reset).
-      bootloader_dfu_start(_ota_dfu, 0, false);
-    }
+    // If USB is not enumerated in 3s (eg. because we're running on battery), we restart into app.
+    bootloader_dfu_start(_ota_dfu, 3000, true);
 
     if (_ota_dfu) {
       disable_softdevice();

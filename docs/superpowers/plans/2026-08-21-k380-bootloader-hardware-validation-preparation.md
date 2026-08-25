@@ -14,7 +14,7 @@
 
 | File | Responsibility |
 | --- | --- |
-| `docs/k380/bootloader-hardware-validation.md` | Records the exact artifact, board identity, SWD/UICR/VDD checks, USB enumeration, CDC-only path, RESET double-click, failures, and completion state. |
+| `docs/k380/bootloader-hardware-validation.md` | Records the exact artifact, board identity, SWD/UICR/VDD checks, USB enumeration, CDC-only path, bootloader cold-start Del recovery, failures, and completion state. |
 | `docs/superpowers/plans/2026-08-19-k380-bootloader-bringup.md` | Links the original bring-up plan to the physical validation record without marking hardware checks complete. |
 
 ### Task 1: Add the K380 Physical Validation Record
@@ -43,7 +43,7 @@ Create `docs/k380/bootloader-hardware-validation.md` with this content:
 **状态：** 未执行。实板、SWD 调试器和测量设备到位前，任何检查不得改为通过。
 
 **范围：** 本记录只覆盖 K380 Adafruit nRF52 Bootloader 的 SWD 首刷、电源配置、USB 枚举和
-RESET 双击进入 UF2。ZMK `&bootloader`、应用 UF2、矩阵、电池、蓝牙和 WS2812B 属于各自的
+ZMK `Fn+Del -> &bootloader` 运行态入口、应用 UF2、矩阵、电池、蓝牙和 WS2812B 属于各自的
 后续实板验证。
 
 ## 不变的构建契约
@@ -146,14 +146,15 @@ Get-PnpDevice -PresentOnly |
   Format-List Status, Class, FriendlyName, InstanceId
 ```
 
-## RESET 双击进入 UF2
+## Bootloader Del 冷启动恢复入口
 
-从有效应用或空应用状态开始，通过 RESET 测试点在 500 ms 窗口内执行两次复位。
+常规恢复入口由 Bootloader 冷启动检测单键 `Del` 触发：断电后按住 `Del`，再上电并保持到
+USB 枚举完成。该路径在本 Bootloader 记录中验证；ZMK 仓库只单独验证运行态
+`Fn+Del -> &bootloader`。
 
 | 检查 | 通过判据 | 结果 |
 | --- | --- | --- |
-| RESET 双击 | 进入 UF2+CDC，且枚举为 `0x303A:0x1011` | 未执行 |
-| 重复性 | 连续执行 10 次，记录成功次数 | 未执行 |
+| Del 恢复入口 | 进入 UF2+CDC，VID/PID 为 `0x303A:0x1011` | 未执行 |
 
 ## 异常与结论
 

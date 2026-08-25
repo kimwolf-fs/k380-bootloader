@@ -11,7 +11,14 @@
 #define LEDS_NUMBER 0
 
 /*
- * K380 没有用户 DFU 按键或 OTA 按键。RESET 双击由上游 nRF52840 通用逻辑处理。
+ * Cold-boot recovery only probes the Del matrix coordinate: RC(4,7).
+ * R4 is driven high briefly and C7 is read with pulldown.
+ */
+#define K380_RECOVERY_ROW_PIN PINNUM(0, 4)
+#define K380_RECOVERY_COL_PIN PINNUM(0, 31)
+
+/*
+ * K380 没有用户 DFU 按键或 OTA 按键。冷启动恢复入口由上面的 Del 矩阵坐标触发。
  * 不定义任何按键输入相关宏。
  */
 
