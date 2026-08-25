@@ -4,9 +4,9 @@
 
 ## 验证范围
 
-本记录仅覆盖 K380 Adafruit nRF52 Bootloader 的以下实板验证：SWD 首次烧录、电源配置、USB 枚举、RESET 双击进入 UF2 模式。
+本记录仅覆盖 K380 Adafruit nRF52 Bootloader 的以下实板验证：SWD 首次烧录、电源配置、USB 枚举、CDC-only 触发 helper、冷启动 `Del` 恢复入口。
 
-以下项目属于后续独立的硬件验证，不在本记录范围内：ZMK `&bootloader`、应用 UF2、矩阵、BLE、WS2812B，以及电池功能，即 VDDHDIV5 采样、低电量行为/UI 和充电状态解释。VDDH <2.75 V 断开检查仍在本记录范围内，但仅作为 Bootloader/电源路径的电气验收，不是电池功能验证。
+以下项目属于后续独立的硬件验证，不在本记录范围内：ZMK `Fn+Del -> &bootloader` 运行态入口、应用 UF2、完整矩阵、BLE、WS2812B，以及电池功能，即 VDDHDIV5 采样、低电量行为/UI 和充电状态解释。VDDH <2.75 V 断开检查仍在本记录范围内，但仅作为 Bootloader/电源路径的电气验收，不是电池功能验证。
 
 ## 不可变契约
 
@@ -115,20 +115,20 @@ Get-Volume |
 
 UF2 + CDC 行只有在附加或转录上述卷标查询输出和现有 VID/PID PnP 输出后，才可判定通过。
 
-CDC-only 不会由 RESET 或 RESET 双击进入；仅当 Bootloader 发现 `NRF_POWER->GPREGRET` 等于 `0x4e`（`DFU_MAGIC_SERIAL_ONLY_RESET`）时选择该模式。CDC-only 检查暂缓至具有经批准的触发 helper：可为单独记录的测试 image，或经批准的 SWD debugger 操作流程写入该 magic 后复位。本记录不声明任何特定 SWD 写入命令已经测试。执行时必须随 `0x303A:0x1012` 的 PnP 证据记录 helper 的来源/commit 或 debugger 操作流程及其证据；此前该行保持 `未执行`。
+CDC-only 不会由 RESET 进入；仅当 Bootloader 发现 `NRF_POWER->GPREGRET` 等于 `0x4e`（`DFU_MAGIC_SERIAL_ONLY_RESET`）时选择该模式。CDC-only 检查暂缓至具有经批准的触发 helper：可为单独记录的测试 image，或经批准的 SWD debugger 操作流程写入该 magic 后复位。本记录不声明任何特定 SWD 写入命令已经测试。执行时必须随 `0x303A:0x1012` 的 PnP 证据记录 helper 的来源/commit 或 debugger 操作流程及其证据；此前该行保持 `未执行`。
 
 USB connect/disconnect 检查从已枚举的 UF2 + CDC 会话开始。连续 10 次拔出并重新插入 USB 线，每次均须观察 `0x303A:0x1011` 先消失再重新出现，期间除有意的拔插事件外不得复位目标。记录为 `x/10`，只有 `10/10` 通过。
 
-## RESET 双击
+## 冷启动 Del 恢复入口
 
-本检查以单独烧录且独立验证为有效的 K380 application 为前提，因为不存在有效 application 时 Bootloader 会进入 DFU。该 application 仅为测试前提；application 烧录和 ZMK `&bootloader` 均不在本记录范围内。没有可用的有效 application 时，本检查保持 `未执行`。
+Bootloader 在冷启动检测窗口内只扫描 `Del = RC(4,7)`，不执行完整矩阵扫描。检测时 R4 `P0.04` 短暂输出高电平，C7 `P0.31` 作为下拉输入读取；检测完成后恢复这两个 GPIO 的默认配置。
 
-每个可复现循环均从 application 正常运行且尚未枚举为 UF2 开始：在 500 ms 内双击 RESET，确认 UF2 + CDC `0x303A:0x1011`；随后单击 RESET，并等待超过 500 ms 让有效 application 恢复，再开始下一次尝试。连续执行 10 次，记录成功数 `x/10`；只有 `10/10` 才可判定通过。
+每次验证均从断电状态开始：先按住 `Del`，再上电并保持按键直到 USB 枚举完成。通过条件是进入 UF2+CDC，VID/PID 为 `0x303A:0x1011` 且卷标为 `K380BOOT`。运行态 `Fn+Del -> &bootloader` 由 ZMK 仓库单独验证，不覆盖本冷启动检查。
 
 | 检查项 | 结果 | 必需证据 |
 | --- | --- | --- |
-| RESET 双击后进入 UF2 + CDC，VID/PID `0x303A:0x1011` | 未执行 | 未执行 |
-| RESET 双击 10 次连续尝试成功数 `x/10`，通过条件 `10/10` | 未执行 | 未执行 |
+| 上电前按住 `Del` 后进入 UF2 + CDC，VID/PID `0x303A:0x1011` | 未执行 | 未执行 |
+| 连续 10 次冷启动尝试成功数 `x/10`，通过条件 `10/10` | 未执行 | 未执行 |
 
 ## 文档结构检查
 
@@ -143,8 +143,8 @@ $required = @(
   'NRF_POWER->GPREGRET',
   '0x4e',
   'DFU_MAGIC_SERIAL_ONLY_RESET',
-  '独立验证为有效的 K380 application',
-  '10/10',
+  '上电前按住 `Del`',
+  'Bootloader 在冷启动检测窗口',
   'VDDHDIV5',
   'VDDH <2.75 V',
   '批准的 VDD 数值验收容差'

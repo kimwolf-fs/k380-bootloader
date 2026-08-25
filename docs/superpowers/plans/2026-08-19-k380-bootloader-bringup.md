@@ -2,7 +2,7 @@
 
 > **面向智能代理执行者：** 必须使用子技能：推荐使用 `superpowers:subagent-driven-development`，或使用 `superpowers:executing-plans`，按任务逐项实施本计划。步骤使用复选框（`- [ ]`）跟踪进度。
 
-**目标：** 为 K380 的 nRF52840-QIAA 创建可由 SWD 首刷、提供 USB UF2+CDC 和双击 RESET 进入 UF2 的首版 Adafruit nRF52 Bootloader board，并只通过 GitHub Actions 构建和交付工件。
+**目标：** 为 K380 的 nRF52840-QIAA 创建可由 SWD 首刷、提供 USB UF2+CDC、并保留 ZMK `&bootloader` 兼容性的首版 Adafruit nRF52 Bootloader board，并只通过 GitHub Actions 构建和交付工件。RESET 双击不再作为常规恢复路径；常规恢复入口改为 Bootloader 冷启动检测上电前按住 `Del`。
 
 **架构：** 新增的 `src/boards/k380/` 仅提供上游 board 抽象所需的 SoC、电源、USB、UF2 和 CF2 配置；不修改通用 Bootloader 逻辑，也不占用 P0.13 或初始化 WS2812B。新增独立的 K380 工作流构建该 board、收集上游默认未复制的原始 HEX 与 linker map，并将所有首刷和分析工件作为单一 artifact 上传。
 
@@ -61,7 +61,7 @@ set(MCU_VARIANT nrf52840)
 #define LEDS_NUMBER 0
 
 /*
- * K380 没有用户 DFU 按键或 OTA 按键。RESET 双击由上游 nRF52840 通用逻辑处理。
+ * K380 没有用户 DFU 按键或 OTA 按键。冷启动恢复入口由 Del 矩阵坐标触发。
  * 不定义 BUTTON_DFU、BUTTON_DFU_OTA 或 BUTTON_PULL。
  */
 
@@ -454,6 +454,6 @@ GitHub Actions run、artifact、merged HEX SHA-256、命令输出、测量值和
 2. 读取 `UICR.REGOUT0` 并测量 VDD，确认 REG0 输出为 2.7 V；确认 DCDC0 未启用、DCDC1 已启用。
 3. 使用 USB-C 枚举 UF2+CDC，确认 USB ID 为 `0x303A:0x1011`。
 4. 触发 CDC-only 路径，确认 USB ID 为 `0x303A:0x1012`。
-5. 通过 RESET 测试点双击，确认 500 ms 窗口内进入 UF2。
+5. 确认常规恢复路径为 Bootloader 冷启动检测上电前按住 `Del`；ZMK 仓库单独验证运行态 `Fn+Del -> &bootloader`。
 
 不要将 LED4 状态灯、ZMK `&bootloader` 跳转、ZMK 应用 UF2、电池采样、蓝牙或无二极管矩阵标记为本计划已验证；它们依赖后续独立的 ZMK board、分区和实板测试。

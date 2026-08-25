@@ -8,12 +8,13 @@
 ## 目标
 
 为 K380 的 nRF52840-QIAA 建立首个可通过 SWD 首刷的 Adafruit nRF52 Bootloader board。
-首版必须提供 USB UF2+CDC、双击 RESET 进入 UF2、ZMK `&bootloader` 进入 UF2 所需的基础
-兼容性，以及可供后续 ZMK board 使用的实际 linker map。
+首版必须提供 USB UF2+CDC、ZMK `&bootloader` 进入 UF2 所需的基础兼容性，以及可供后续
+ZMK board 使用的实际 linker map。RESET 双击不再作为常规恢复路径；常规恢复入口改为
+Bootloader 冷启动检测上电前按住 `Del`。ZMK 只负责运行态 `Fn+Del -> &bootloader`。
 
 已完成的首版判据是：GitHub Actions 成功构建并上传工件，且 linker map 已确认应用 Flash
-边界。实板经 SWD 首刷后可枚举 USB、可通过 RESET 测试点双击进入 UF2，仍是必须保留的
-延期验证，不能由 CI 结果替代。
+边界。实板经 SWD 首刷后可枚举 USB；RESET 测试点仅保留为调试与救砖入口，不再承担常规
+恢复路径，不能由 CI 结果替代。
 
 ## 范围
 
@@ -83,8 +84,9 @@ linker map 得出。
 
 ## 启动与恢复行为
 
-首版沿用上游 nRF52840 的双击 RESET 检测，时间窗口为 500 ms。RESET 测试点双击进入
-UF2+CDC；应用调用 ZMK `&bootloader` 后也必须进入 UF2+CDC。
+首版不再沿用上游 nRF52840 的双击 RESET 检测。RESET 测试点仅用于调试与救砖；Bootloader
+在冷启动窗口只探测 `Del = RC(4,7)`，即 R4 `P0.04` 和 C7 `P0.31`。应用调用 ZMK
+`&bootloader` 后仍必须进入 UF2+CDC。
 
 日常应用更新使用后续 ZMK 生成、且与 linker map 应用边界一致的应用 UF2。Bootloader
 构建输出的 `update-*_bootloader_*.uf2` 仅用于更新 Bootloader 本身，不能替代日常应用
@@ -137,7 +139,7 @@ K380 Bootloader 的 linker map 已确认：
 2. 记录 UICR、VDD 和 VDDH 测量结果，确认 2.7 V LDO 与 DCDC 配置。
 3. 使用 USB-C 确认 UF2+CDC 枚举的 VID/PID 为 `0x303A:0x1011`。
 4. 确认 CDC-only 路径的 VID/PID 为 `0x303A:0x1012`。
-5. 通过 RESET 测试点双击进入 UF2+CDC。
+5. 确认常规恢复路径为 Bootloader 冷启动检测上电前按住 `Del`。
 6. 应用 Flash 边界已记录在 ZMK 硬件契约；实板验证完成后记录使用的工件、测量值、枚举
    结果和异常项。
 
@@ -149,8 +151,8 @@ board 和应用分区参数已存在后验证。
 首版 Bootloader 的源码、CI 和 ZMK 分区对接均已完成。本仓库在实板可用前不再需要新增
 功能性改动。后续工作按以下顺序继续：
 
-1. 使用已发布的 merged HEX 执行 Bootloader 的 SWD、USB 枚举和 RESET 双击实板验证。
-2. 在实板上验证 ZMK `&bootloader` 进入 UF2，以及应用 UF2 写入和重新启动。
+1. 使用已发布的 merged HEX 执行 Bootloader 的 SWD 和 USB 枚举实板验证。
+2. 在 Bootloader 仓库验证冷启动 `Del` 恢复入口；在 ZMK 仓库验证运行态 `Fn+Del -> &bootloader`、应用 UF2 写入和重新启动。
 3. 为 Bootloader 单独设计并实现 LED4 状态灯；该阶段必须先确认状态灯时序、颜色和亮度
    上限。
 4. 完成 USB、电源、电池、蓝牙槽位、矩阵和 LED4 的整机实板验证。
