@@ -56,7 +56,7 @@ ZMK `Fn+Del -> &bootloader` 运行态入口、应用 UF2、矩阵、电池、蓝
 | USB UF2+CDC | `0x303A:0x1011` |
 | USB CDC-only | `0x303A:0x1012` |
 | UF2 卷标 | `K380BOOT` |
-| REGOUT0 | 2.7 V |
+| REGOUT0 | 1.8 V |
 | DCDC0 | 禁用 |
 | DCDC1 | 启用 |
 | 应用窗口 | `0x00026000..0x000EA000` |
@@ -122,8 +122,8 @@ Get-FileHash .\k380_bootloader-*_s140_6.1.1.hex -Algorithm SHA256
 | --- | --- | --- |
 | SWD recover | 命令退出码为 0 | 未执行 |
 | merged HEX 编程 | `--program` 和 `--verify` 均退出码为 0 | 未执行 |
-| `REGOUT0` | 读取值的 `VOUT` 字段为 2.7 V 配置 | 未执行 |
-| VDD | 实测为 2.7 V，记录测量值和容差 | 未执行 |
+| `REGOUT0` | 读取值的 `VOUT` 字段为 1.8 V 配置 | 未执行 |
+| VDD | 实测为 1.8 V，记录测量值和容差 | 未执行 |
 | DCDC0 | 运行时未启用 | 未执行 |
 | DCDC1 | 运行时启用 | 未执行 |
 | 电池低 VDDH 断开 | VDDH 低于 2.75 V 时断开 | 未执行 |

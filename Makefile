@@ -164,6 +164,7 @@ C_SRC += \
   src/dfu_init.c \
   src/flash_nrf5x.c \
   src/main.c \
+  src/power_gate.c \
   src/screen.c \
   src/images.c \
 

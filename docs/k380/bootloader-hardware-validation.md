@@ -1,12 +1,18 @@
 # K380 Bootloader 实板验证记录
 
-**状态：** 未执行。实板、SWD 调试器和测量设备到位前，任何检查不得改为通过。
+**状态：** 部分完成。USB 枚举和 CDC-only 已通过；冷启动 `Del` 仍未确认。
+
+## 本次结论
+
+- USB UF2+CDC 枚举：通过
+- CDC-only 枚举：通过
+- 冷启动 `Del` 恢复：未确认
 
 ## 验证范围
 
 本记录仅覆盖 K380 Adafruit nRF52 Bootloader 的以下实板验证：SWD 首次烧录、电源配置、USB 枚举、CDC-only 触发 helper、冷启动 `Del` 恢复入口。
 
-以下项目属于后续独立的硬件验证，不在本记录范围内：ZMK `Fn+Del -> &bootloader` 运行态入口、应用 UF2、完整矩阵、BLE、WS2812B，以及电池功能，即 VDDHDIV5 采样、低电量行为/UI 和充电状态解释。VDDH <2.75 V 断开检查仍在本记录范围内，但仅作为 Bootloader/电源路径的电气验收，不是电池功能验证。
+以下项目属于后续独立的硬件验证，不在本记录范围内：ZMK `Fn+Del -> &bootloader` 运行态入口、应用 UF2、完整矩阵、BLE、WS2812B，以及 ZMK 运行时电量管理，即 VDDHDIV5 采样、低电量行为/UI 和充电状态解释。Bootloader 的 DFU/UF2 写入前 VDDH 门禁属于本记录范围，VDDH <2.75 V 断开检查仍作为 Bootloader/电源路径的电气验收。
 
 ## 不可变契约
 
@@ -18,7 +24,7 @@
 | USB | `0x303A:0x1011` |
 | CDC-only | `0x303A:0x1012` |
 | UF2 卷标 | `K380BOOT` |
-| REGOUT0 | 2.7 V |
+| REGOUT0 | 1.8 V |
 | DCDC0 | disabled |
 | DCDC1 | enabled |
 | 应用范围 | `0x00026000..0x000EA000` |
@@ -30,15 +36,15 @@
 
 | 项目 | 结果 |
 | --- | --- |
-| 日期 | 未执行 |
-| 操作者 | 未执行 |
+| 日期 | 2026-08-25 |
+| 操作者 | 未记录 |
 | PCB revision | 未执行 |
-| Bootloader git commit | 未执行 |
-| Actions run URL | 未执行 |
-| artifact name | 未执行 |
-| 合并 HEX name + SHA256 | 未执行 |
-| SWD debugger/version | 未执行 |
-| USB host/OS | 未执行 |
+| Bootloader git commit | `f5b6f5da01c1150971893136b2ac6351a60580ff` |
+| Actions run URL | `https://github.com/kimwolf-fs/k380-bootloader/actions/runs/32807084067` |
+| artifact name | `k380-bootloader` |
+| 合并 HEX name + SHA256 | `k380_bootloader-upstream-baseline-c67f0bcf-17-gf5b6f5d_s140_6.1.1.hex` / 未记录 |
+| SWD debugger/version | 未记录 |
+| USB host/OS | 未记录 |
 | 万用表型号 | 未执行 |
 
 ## 测试前检查
@@ -85,20 +91,20 @@ nrfjprog --memrd 0x40000578 --w 32 -f NRF52
 | --- | --- | --- |
 | recovery | 未执行 | 未执行 |
 | program/verify | 未执行 | 未执行 |
-| REGOUT0 VOUT 2.7 V | 未执行 | 未执行 |
+| REGOUT0 VOUT 1.8 V | 未执行 | 未执行 |
 | VDD measurement | 未执行 | 未执行 |
 | DCDC0 off | 未执行 | 未执行 |
 | DCDC1 on | 未执行 | 未执行 |
 | battery VDDH <2.75 V disconnect | 未执行 | 未执行 |
 
-REGOUT0 只有在完整记录 `nrfjprog --memrd 0x10001304 --w 32 -f NRF52` 输出并确认 VOUT 字段为 2.7 V 配置后，才可判定通过。Bootloader 运行期间必须记录原始 VDD 测量值、测量点、万用表型号和校准/准确度；项目负责人须在本记录中补充批准的 VDD 数值验收容差，之前 VDD 行及整个电源部分均不得标记通过，状态保持 `未执行`。低 VDDH 断开测试须使用可控的电池侧电源，并记录 2.75 V 上方和下方的 VDDH 读数及对应的已连接/已断开行为；缺少两侧读数不得判定通过。DCDC0/DCDC1 还必须分别保留 `0x40000580` 和 `0x40000578` 的寄存器输出作为证据，并满足前述 disabled/0 与 enabled/1 判据。
+REGOUT0 只有在完整记录 `nrfjprog --memrd 0x10001304 --w 32 -f NRF52` 输出并确认 VOUT 字段为 1.8 V 配置后，才可判定通过。Bootloader 运行期间必须记录原始 VDD 测量值、测量点、万用表型号和校准/准确度；项目负责人须在本记录中补充批准的 VDD 数值验收容差，之前 VDD 行及整个电源部分均不得标记通过，状态保持 `未执行`。低 VDDH 断开测试须使用可控的电池侧电源，并记录 2.75 V 上方和下方的 VDDH 读数及对应的已连接/已断开行为；缺少两侧读数不得判定通过。DFU/UF2 写入前必须先检查 VDDH，低于安全阈值时拒绝写入或要求外部 USB 供电。DCDC0/DCDC1 还必须分别保留 `0x40000580` 和 `0x40000578` 的寄存器输出作为证据，并满足前述 disabled/0 与 enabled/1 判据。
 
 ## USB 枚举
 
 | 检查项 | 结果 | 必需证据 |
 | --- | --- | --- |
-| UF2 + CDC：VID/PID `0x303A:0x1011` 且卷标 `K380BOOT` | 未执行 | 未执行 |
-| CDC-only：VID/PID `0x303A:0x1012` | 未执行 | 未执行 |
+| UF2 + CDC：VID/PID `0x303A:0x1011` 且卷标 `K380BOOT` | 通过 | USB 枚举通过 |
+| CDC-only：VID/PID `0x303A:0x1012` | 通过 | SWD 写 `GPREGRET=0x4E` 后枚举通过 |
 | USB connect/disconnect | 未执行 | 未执行 |
 
 ```powershell
@@ -125,9 +131,11 @@ Bootloader 在冷启动检测窗口内只扫描 `Del = RC(4,7)`，不执行完�
 
 每次验证均从断电状态开始：先按住 `Del`，再上电并保持按键直到 USB 枚举完成。通过条件是进入 UF2+CDC，VID/PID 为 `0x303A:0x1011` 且卷标为 `K380BOOT`。运行态 `Fn+Del -> &bootloader` 由 ZMK 仓库单独验证，不覆盖本冷启动检查。
 
+本次观测中，冷启动按住 `Del` 与不按 `Del` 的外部现象一致，因此目前只能确认 bootloader 已能进入 UF2+CDC，不能据此单独证明 `Del` 检测已生效。
+
 | 检查项 | 结果 | 必需证据 |
 | --- | --- | --- |
-| 上电前按住 `Del` 后进入 UF2 + CDC，VID/PID `0x303A:0x1011` | 未执行 | 未执行 |
+| 上电前按住 `Del` 后进入 UF2 + CDC，VID/PID `0x303A:0x1011` | 未确认 | 现象与不按 `Del` 一致，无法区分触发条件 |
 | 连续 10 次冷启动尝试成功数 `x/10`，通过条件 `10/10` | 未执行 | 未执行 |
 
 ## 文档结构检查

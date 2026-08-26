@@ -46,6 +46,7 @@
 #include "sdk_common.h"
 #include "bootloader.h"
 #include "bootloader_util.h"
+#include "power_gate.h"
 
 #include "nrf.h"
 #include "nrf_soc.h"
@@ -181,6 +182,7 @@ int main(void) {
 
   board_init();
   bootloader_init();
+  bootloader_power_gate_init();
   PRINTF("Bootloader Start\r\n");
   led_state(STATE_BOOTLOADER_STARTED);
 

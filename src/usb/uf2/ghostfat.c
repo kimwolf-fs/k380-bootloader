@@ -35,6 +35,7 @@
 
 #include "bootloader_settings.h"
 #include "bootloader.h"
+#include "power_gate.h"
 
 //--------------------------------------------------------------------+
 //
@@ -246,6 +247,15 @@ static inline bool in_uicr_space(uint32_t addr)
   return addr == 0x10001000;
 }
 
+static bool reject_flash_if_power_low(WriteState *state) {
+  if (bootloader_power_gate_flash_allowed()) {
+    return false;
+  }
+
+  state->aborted = true;
+  return true;
+}
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
@@ -438,6 +448,10 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
        */
       if ( in_app_space(bl->targetAddr) )
       {
+        if (reject_flash_if_power_low(state)) {
+          return -1;
+        }
+
         PRINTF("Write addr = 0x%08lX, block = %ld (%ld of %ld)\r\n", bl->targetAddr, bl->blockNo, state->numWritten, bl->numBlocks);
         flash_nrf5x_write(bl->targetAddr, bl->data, bl->payloadSize, true);
       }else if ( bl->targetAddr < USER_FLASH_START )
@@ -548,6 +562,10 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
         }
 
         // Offset to write the new bootloader address (skipping the App Data)
+        if (reject_flash_if_power_low(state)) {
+          return -1;
+        }
+
         uint32_t const offset_addr = BOOTLOADER_ADDR_END-USER_FLASH_END;
         flash_nrf5x_write(bl->targetAddr-offset_addr, bl->data, bl->payloadSize, true);
       }
@@ -601,6 +619,10 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
       // TODO numWritten can be smaller than numBlocks if return early
       if ( state->numWritten >= state->numBlocks )
       {
+        if (reject_flash_if_power_low(state)) {
+          return -1;
+        }
+
         flash_nrf5x_flush(true);
 
         // Failed if update bootloader without UCIR value

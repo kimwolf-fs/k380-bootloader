@@ -27,6 +27,7 @@
 #include "flash_nrf5x.h"
 #include "boards.h"
 #include "dfu_types.h"
+#include "power_gate.h"
 
 #define FLASH_CACHE_INVALID_ADDR  0xffffffff
 
@@ -35,6 +36,11 @@ static uint8_t _fl_buf[CODE_PAGE_SIZE] __attribute__((aligned(4)));
 
 void flash_nrf5x_erase (uint32_t dst, uint32_t len)
 {
+    if (!bootloader_power_gate_flash_allowed()) {
+        _fl_addr = FLASH_CACHE_INVALID_ADDR;
+        return;
+    }
+
     uint32_t page_addr = dst & ~(CODE_PAGE_SIZE - 1);
     uint32_t const page_count = NRFX_CEIL_DIV(len, CODE_PAGE_SIZE);
     for ( uint32_t i = 0; i < page_count; i++ )
@@ -50,6 +56,11 @@ void flash_nrf5x_flush (bool need_erase)
 {
     if ( _fl_addr == FLASH_CACHE_INVALID_ADDR )
         return;
+
+    if (!bootloader_power_gate_flash_allowed()) {
+        _fl_addr = FLASH_CACHE_INVALID_ADDR;
+        return;
+    }
 
     // skip the write if contents matches
     if ( memcmp(_fl_buf, (void *) _fl_addr, CODE_PAGE_SIZE) != 0 )
@@ -74,6 +85,11 @@ void flash_nrf5x_flush (bool need_erase)
 
 void flash_nrf5x_write (uint32_t dst, void const *src, uint32_t len, bool need_erase)
 {
+    if (!bootloader_power_gate_flash_allowed()) {
+        _fl_addr = FLASH_CACHE_INVALID_ADDR;
+        return;
+    }
+
     // While something to write...
     while (len > 0) {
 

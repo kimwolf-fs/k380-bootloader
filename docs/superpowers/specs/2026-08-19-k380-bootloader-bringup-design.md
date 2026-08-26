@@ -64,7 +64,7 @@ K380 board 必须保持：
 | 项目 | 固定值 |
 | --- | --- |
 | SoC | nRF52840-QIAA |
-| `UICR_REGOUT0_VALUE` | `UICR_REGOUT0_VOUT_2V7` |
+| `UICR_REGOUT0_VALUE` | `UICR_REGOUT0_VOUT_1V8` |
 | `ENABLE_DCDC_0` | `0` |
 | `ENABLE_DCDC_1` | `1` |
 | USB VID | `0x303A` |
@@ -92,7 +92,7 @@ linker map 得出。
 构建输出的 `update-*_bootloader_*.uf2` 仅用于更新 Bootloader 本身，不能替代日常应用
 UF2。
 
-SWD 是首刷、擦除和救砖路径。首刷必须验证 `UICR.REGOUT0` 设为 2.7 V，DCDC0 不启用，
+SWD 是首刷、擦除和救砖路径。首刷必须验证 `UICR.REGOUT0` 设为 1.8 V，DCDC0 不启用，
 DCDC1 启用。
 
 ## Flash 边界门禁
@@ -136,7 +136,7 @@ K380 Bootloader 的 linker map 已确认：
 ## 实板验证顺序
 
 1. 使用 SWD 擦除并首刷 CI 产出的 K380 Bootloader 工件。
-2. 记录 UICR、VDD 和 VDDH 测量结果，确认 2.7 V LDO 与 DCDC 配置。
+2. 记录 UICR、VDD 和 VDDH 测量结果，确认 1.8 V LDO 与 DCDC 配置。
 3. 使用 USB-C 确认 UF2+CDC 枚举的 VID/PID 为 `0x303A:0x1011`。
 4. 确认 CDC-only 路径的 VID/PID 为 `0x303A:0x1012`。
 5. 确认常规恢复路径为 Bootloader 冷启动检测上电前按住 `Del`。

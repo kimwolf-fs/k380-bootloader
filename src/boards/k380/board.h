@@ -1,7 +1,7 @@
 #ifndef K380_H
 #define K380_H
 
-#define UICR_REGOUT0_VALUE UICR_REGOUT0_VOUT_2V7
+#define UICR_REGOUT0_VALUE UICR_REGOUT0_VOUT_1V8
 #define ENABLE_DCDC_0      0
 #define ENABLE_DCDC_1      1
 

@@ -53,6 +53,7 @@ add_executable(bootloader
   src/dfu_init.c
   src/flash_nrf5x.c
   src/main.c
+  src/power_gate.c
   src/screen.c
   src/images.c
   src/boards/boards.c

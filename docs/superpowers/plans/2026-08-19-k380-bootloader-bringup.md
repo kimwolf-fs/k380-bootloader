@@ -51,7 +51,7 @@ set(MCU_VARIANT nrf52840)
 #ifndef K380_H
 #define K380_H
 
-#define UICR_REGOUT0_VALUE UICR_REGOUT0_VOUT_2V7
+#define UICR_REGOUT0_VALUE UICR_REGOUT0_VOUT_1V8
 #define ENABLE_DCDC_0      0
 #define ENABLE_DCDC_1      1
 
@@ -451,7 +451,7 @@ GitHub Actions run、artifact、merged HEX SHA-256、命令输出、测量值和
 在合并至 `k380` 后，使用 artifact 的 merged HEX 按以下顺序执行实板 bring-up：
 
 1. 通过 SWD 擦除并首刷 merged `*_s140_6.1.1.hex`。
-2. 读取 `UICR.REGOUT0` 并测量 VDD，确认 REG0 输出为 2.7 V；确认 DCDC0 未启用、DCDC1 已启用。
+2. 读取 `UICR.REGOUT0` 并测量 VDD，确认 REG0 输出为 1.8 V；确认 DCDC0 未启用、DCDC1 已启用，并验证 DFU/UF2 写入前的 VDDH 门禁。
 3. 使用 USB-C 枚举 UF2+CDC，确认 USB ID 为 `0x303A:0x1011`。
 4. 触发 CDC-only 路径，确认 USB ID 为 `0x303A:0x1012`。
 5. 确认常规恢复路径为 Bootloader 冷启动检测上电前按住 `Del`；ZMK 仓库单独验证运行态 `Fn+Del -> &bootloader`。

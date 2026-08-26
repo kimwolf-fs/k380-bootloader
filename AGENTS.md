@@ -12,6 +12,10 @@ Follow the repo `.clang-format` when making changes.
 
 ## Build / Verify
 
+For K380 work, treat GitHub Actions as the source of truth for bootloader and ZMK
+build verification. Local `gh` is available in PowerShell and can be used to inspect
+workflow runs and download artifacts when needed.
+
 Default board: `feather_nrf52840_express`. Always verify changes against both boards:
 - `feather_nrf52840_express` (nRF52840)
 - `feather_nrf52832` (nRF52832)
