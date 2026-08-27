@@ -12,7 +12,6 @@ on:
       - "tools/**"
       - "Makefile"
       - "CMakeLists.txt"
-      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
   push:
     branches: [k380]
     paths:
@@ -23,7 +22,6 @@ on:
       - "tools/**"
       - "Makefile"
       - "CMakeLists.txt"
-      - "docs/superpowers/specs/2026-08-19-k380-bootloader-bringup-design.md"
 
 permissions:
   contents: read
