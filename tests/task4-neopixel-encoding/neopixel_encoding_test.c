@@ -20,5 +20,16 @@ int main(void) {
   assert(wire_grb[1] == 0x12);
   assert(wire_grb[2] == 0x56);
 
+  uint16_t pattern[6] = {1, 2, 3, 4, 5, 6};
+  uint16_t pos = 2;
+  neopixel_append_reset_padding(pattern, &pos);
+  assert(pos == 4);
+  assert(pattern[0] == 1);
+  assert(pattern[1] == 2);
+  assert(pattern[2] == 0x8000);
+  assert(pattern[3] == 0x8000);
+  assert(pattern[4] == 5);
+  assert(pattern[5] == 6);
+
   return 0;
 }

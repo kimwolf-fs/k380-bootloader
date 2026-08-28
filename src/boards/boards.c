@@ -584,8 +584,7 @@ static void neopixel_encode_rgb_triplet(uint8_t const *pixels, uint16_t *pos) {
 
 static void neopixel_show(uint16_t pos) {
   // Zero padding to indicate the end of sequence
-  pixels_pattern[pos++] = 0 | (0x8000);    // Seq end
-  pixels_pattern[pos++] = 0 | (0x8000);    // Seq end
+  neopixel_append_reset_padding(pixels_pattern, &pos);
 
   NRF_PWM_Type* pwm = NRF_PWM1;
 

@@ -15,4 +15,9 @@ static inline void neopixel_legacy_word_bytes_to_wire_grb(const uint8_t bytes[3]
   grb[2] = bytes[0];
 }
 
+static inline void neopixel_append_reset_padding(uint16_t *pattern, uint16_t *pos) {
+  pattern[(*pos)++] = 0x8000;
+  pattern[(*pos)++] = 0x8000;
+}
+
 #endif
