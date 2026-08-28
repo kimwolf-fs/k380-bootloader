@@ -253,6 +253,7 @@ static bool reject_flash_if_power_low(WriteState *state) {
   }
 
   state->aborted = true;
+  led_state(STATE_K380_POWER_REJECTED);
   return true;
 }
 

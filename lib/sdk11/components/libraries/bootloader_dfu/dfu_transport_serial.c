@@ -21,6 +21,7 @@
 #include "app_timer.h"
 #include "app_scheduler.h"
 #include "boards.h"
+#include "power_gate.h"
 
 #define MAX_BUFFERS          4u                                                      /**< Maximum number of buffers that can be received queued without being consumed. */
 
@@ -178,6 +179,17 @@ static void data_queue_flush(void)
     }
 }
 
+static bool reject_flash_if_power_low(void)
+{
+    if (bootloader_power_gate_flash_allowed())
+    {
+        return false;
+    }
+
+    led_state(STATE_K380_POWER_REJECTED);
+    return true;
+}
+
 
 /**@brief       Function for handling the callback events from the dfu module.
  *              Callbacks are expected when \ref dfu_data_pkt_handle has been executed.
@@ -212,14 +224,44 @@ static void process_dfu_packet(void * p_event_data, uint16_t event_size)
                 switch (DATA_QUEUE_ELEMENT_GET_PTYPE(index))
                 {
                     case DATA_PACKET:
-                        (void)dfu_data_pkt_handle(packet);
+                        if (reject_flash_if_power_low())
+                        {
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
+                        retval = dfu_data_pkt_handle(packet);
+                        if ((retval != NRF_SUCCESS) && (retval != NRF_ERROR_INVALID_LENGTH))
+                        {
+                            led_state(bootloader_power_gate_rejected() ? STATE_K380_POWER_REJECTED
+                                                                       : STATE_K380_WRITE_FAILED);
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
                         break;
 
                     case START_PACKET:
                         packet->params.start_packet =
                             (dfu_start_packet_t*)packet->params.data_packet.p_data_packet;
+                        if (reject_flash_if_power_low())
+                        {
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
                         retval = dfu_start_pkt_handle(packet);
-                        APP_ERROR_CHECK(retval);
+                        if (retval != NRF_SUCCESS)
+                        {
+                            led_state(STATE_K380_WRITE_FAILED);
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
                         break;
 
                     case INIT_PACKET:
@@ -231,8 +273,25 @@ static void process_dfu_packet(void * p_event_data, uint16_t event_size)
                         break;
 
                     case STOP_DATA_PACKET:
-                        (void)dfu_image_validate();
-                        (void)dfu_image_activate();
+                        retval = dfu_image_validate();
+                        if (retval != NRF_SUCCESS)
+                        {
+                            led_state(STATE_K380_WRITE_FAILED);
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
+
+                        retval = dfu_image_activate();
+                        if (retval != NRF_SUCCESS)
+                        {
+                            led_state(STATE_K380_WRITE_FAILED);
+                            retval = data_queue_element_free(index);
+                            APP_ERROR_CHECK(retval);
+                            data_queue_flush();
+                            return;
+                        }
 
                         led_state(STATE_WRITING_FINISHED);
 

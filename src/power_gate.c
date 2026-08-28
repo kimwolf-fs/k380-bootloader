@@ -1,7 +1,17 @@
 #include "power_gate.h"
 
+static bool flash_rejected = false;
+
 bool bootloader_power_gate_policy_flash_allowed(uint16_t vddh_mv) {
   return vddh_mv > BOOTLOADER_POWER_GATE_USB_PRESENT_MV;
+}
+
+bool bootloader_power_gate_rejected(void) {
+  return flash_rejected;
+}
+
+void bootloader_power_gate_clear_rejected(void) {
+  flash_rejected = false;
 }
 
 #ifndef BOOTLOADER_POWER_GATE_POLICY_TEST
@@ -14,6 +24,7 @@ bool bootloader_power_gate_policy_flash_allowed(uint16_t vddh_mv) {
 #endif
 
 void bootloader_power_gate_init(void) {
+  bootloader_power_gate_clear_rejected();
 }
 
 uint16_t bootloader_power_gate_vddh_mv(void) {
@@ -67,7 +78,10 @@ bool bootloader_power_gate_usb_power_present(void) {
 bool bootloader_power_gate_flash_allowed(void) {
   const bool flash_allowed = bootloader_power_gate_usb_power_present();
   if (!flash_allowed) {
+    flash_rejected = true;
     PRINTF("VDDH at or below 4.5V, flash writes disabled\r\n");
+  } else {
+    bootloader_power_gate_clear_rejected();
   }
 
   return flash_allowed;

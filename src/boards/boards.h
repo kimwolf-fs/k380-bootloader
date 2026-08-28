@@ -87,6 +87,12 @@ enum {
   STATE_BLE_DISCONNECTED
 };
 
+enum {
+  STATE_K380_CDC_ONLY = 100,
+  STATE_K380_WRITE_FAILED,
+  STATE_K380_POWER_REJECTED
+};
+
 void led_pwm_init(uint32_t led_index, uint32_t led_pin);
 void led_pwm_teardown(void);
 void led_pwm_disable(uint32_t led_index);

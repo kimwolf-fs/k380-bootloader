@@ -24,6 +24,7 @@
 
 #include "tusb.h"
 #include "uf2/uf2.h"
+#include "power_gate.h"
 
 #if CFG_TUD_MSC
 
@@ -181,14 +182,10 @@ void tud_msc_write10_complete_cb(uint8_t lun)
     // aborted and reset
     PRINTF("Aborted\r\n");
 
-    dfu_update_status_t update_status;
-    memset(&update_status, 0, sizeof(dfu_update_status_t ));
-    update_status.status_code = DFU_RESET;
-    update_status.restart_into_bootloader = false;
-
-    bootloader_dfu_update_process(update_status);
-
-    led_state(STATE_WRITING_FINISHED);
+    led_state(bootloader_power_gate_rejected() ? STATE_K380_POWER_REJECTED
+                                               : STATE_K380_WRITE_FAILED);
+    memset(&_wr_state, 0, sizeof(_wr_state));
+    first_write = true;
   }
   else if ( _wr_state.numBlocks )
   {
