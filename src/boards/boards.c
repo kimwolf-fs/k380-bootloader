@@ -152,6 +152,16 @@ void board_init(void) {
 // Actions at the end of board_teardown.
 void __attribute__((weak)) board_teardown2(void) {}
 
+bool __attribute__((weak)) board_led_state_override(uint32_t state) {
+  (void)state;
+  return false;
+}
+
+bool __attribute__((weak)) board_led_tick_override(uint32_t millis) {
+  (void)millis;
+  return false;
+}
+
 void board_teardown(void) {
   // Disable systick, turn off LEDs
   SysTick->CTRL = 0;
@@ -378,6 +388,9 @@ static uint32_t secondary_cycle_length;
 
 void led_tick(void) {
   uint32_t millis = _systick_count;
+  if (board_led_tick_override(millis)) {
+    return;
+  }
 
   uint32_t cycle = millis % primary_cycle_length;
   uint32_t half_cycle = primary_cycle_length / 2;
@@ -408,6 +421,10 @@ static uint32_t rgb_color;
 static bool temp_color_active = false;
 
 void led_state(uint32_t state) {
+  if (board_led_state_override(state)) {
+    return;
+  }
+
   uint32_t new_rgb_color = rgb_color;
   uint32_t temp_color = 0;
   switch (state) {
@@ -538,24 +555,21 @@ void neopixel_teardown(void) {
   pwm_teardown(NRF_PWM1);
 }
 
-// write 3 bytes color RGB to built-in neopixel
-void neopixel_write(uint8_t* pixels) {
+static void neopixel_encode_rgb(uint8_t const *pixels, uint16_t *pos) {
   // convert RGB to GRB
   uint8_t grb[BYTE_PER_PIXEL] = {pixels[1], pixels[2], pixels[0]};
-  uint16_t pos = 0;    // bit position
 
-  // Set all neopixel to same value
-  for (uint16_t n = 0; n < NEOPIXELS_NUMBER; n++) {
-    for (uint8_t c = 0; c < BYTE_PER_PIXEL; c++) {
-      uint8_t const pix = grb[c];
+  for (uint8_t c = 0; c < BYTE_PER_PIXEL; c++) {
+    uint8_t const pix = grb[c];
 
-      for (uint8_t mask = 0x80; mask > 0; mask >>= 1) {
-        pixels_pattern[pos] = (pix & mask) ? MAGIC_T1H : MAGIC_T0H;
-        pos++;
-      }
+    for (uint8_t mask = 0x80; mask > 0; mask >>= 1) {
+      pixels_pattern[*pos] = (pix & mask) ? MAGIC_T1H : MAGIC_T0H;
+      (*pos)++;
     }
   }
+}
 
+static void neopixel_show(uint16_t pos) {
   // Zero padding to indicate the end of sequence
   pixels_pattern[pos++] = 0 | (0x8000);    // Seq end
   pixels_pattern[pos++] = 0 | (0x8000);    // Seq end
@@ -570,6 +584,30 @@ void neopixel_write(uint8_t* pixels) {
   // blocking wait for sequence complete
   while (!nrf_pwm_event_check(pwm, NRF_PWM_EVENT_SEQEND0)) {}
   nrf_pwm_event_clear(pwm, NRF_PWM_EVENT_SEQEND0);
+}
+
+// write one RGB color to every built-in neopixel
+void neopixel_write(uint8_t* pixels) {
+  uint16_t pos = 0;    // bit position
+
+  for (uint16_t n = 0; n < NEOPIXELS_NUMBER; n++) {
+    neopixel_encode_rgb(pixels, &pos);
+  }
+
+  neopixel_show(pos);
+}
+
+// write one RGB triplet per neopixel, in board-defined serial order
+void neopixel_write_pixels(const uint8_t *pixels, uint16_t pixel_count) {
+  uint16_t pos = 0;    // bit position
+  uint8_t const off[BYTE_PER_PIXEL] = {0, 0, 0};
+
+  for (uint16_t n = 0; n < NEOPIXELS_NUMBER; n++) {
+    uint8_t const *pixel = (n < pixel_count) ? &pixels[n * BYTE_PER_PIXEL] : off;
+    neopixel_encode_rgb(pixel, &pos);
+  }
+
+  neopixel_show(pos);
 }
 
 #endif

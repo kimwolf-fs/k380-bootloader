@@ -5,9 +5,9 @@
 #define ENABLE_DCDC_0      0
 #define ENABLE_DCDC_1      1
 
-/*
- * 首版不初始化任何状态灯，也不占用 P0.13。LED4 的 WS2812B 灯效由后续独立阶段实现。
- */
+#define K380_BOOTLOADER_STATUS_INDICATOR 1
+#define LED_NEOPIXEL PINNUM(0, 13)
+#define NEOPIXELS_NUMBER 4
 #define LEDS_NUMBER 0
 
 /*

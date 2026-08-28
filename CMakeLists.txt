@@ -15,6 +15,20 @@ if (POWER_GATE_POLICY_TEST_ONLY)
     COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task3-source-contract/task3_source_contract.sh)
   set_tests_properties(task3_source_contract PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+  add_test(NAME task4_source_contract
+    COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task4-source-contract/task4_source_contract.sh)
+  set_tests_properties(task4_source_contract PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+  add_executable(task4_status_indicator_compile_test
+    src/boards/k380/status_indicator.c
+    tests/task4-status-indicator-compile/neopixel_stub.c
+  )
+  target_include_directories(task4_status_indicator_compile_test PRIVATE
+    tests/task4-status-indicator-compile
+    src/boards/k380
+  )
+  target_compile_options(task4_status_indicator_compile_test PRIVATE -Wall -Wextra -Werror)
+  add_test(NAME task4_status_indicator_compile_test COMMAND task4_status_indicator_compile_test)
   return()
 endif ()
 
@@ -76,6 +90,7 @@ add_executable(bootloader
   src/screen.c
   src/images.c
   src/boards/boards.c
+  ${BOARD_C_SRC}
   # nrfx
   ${NRFX_DIR}/drivers/src/nrfx_power.c
   ${NRFX_DIR}/drivers/src/nrfx_nvmc.c
