@@ -140,7 +140,7 @@ else ifeq ($(MCU_SUB_VARIANT),nrf52840)
   ifndef SD_NAME
 		SD_NAME = s140
 	endif
-else
+else ifneq ($(filter host-test-power-gate-policy,$(MAKECMDGOALS)),host-test-power-gate-policy)
   $(error Sub Variant $(MCU_SUB_VARIANT) is unknown)
 endif
 
@@ -346,8 +346,10 @@ CFLAGS += -Wno-unused-parameter -Wno-expansion-to-defined
 # a broken bootloader). The broken headers come from Nordic-supplied zip
 # files and are not trivial to patch so, for now, we'll simply disable the
 # new gcc-11 inter-procedural optimizations.
-ifeq (,$(findstring unrecognized,$(shell $(CC) $(CFLAGS) -fno-ipa-modref 2>&1)))
-CFLAGS += -fno-ipa-modref
+ifneq ($(filter host-test-power-gate-policy,$(MAKECMDGOALS)),host-test-power-gate-policy)
+  ifeq (,$(findstring unrecognized,$(shell $(CC) $(CFLAGS) -fno-ipa-modref 2>&1)))
+  CFLAGS += -fno-ipa-modref
+  endif
 endif
 
 # Defined Symbol (MACROS)
@@ -456,10 +458,27 @@ INC_PATHS = $(addprefix -I,$(IPATH))
 # BUILD TARGETS
 #------------------------------------------------------------------------------
 
-.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb
+.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy
 
 # default target to build
 all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BUILD)/$(MERGED_FILE).hex $(BUILD)/$(MERGED_FILE).zip
+
+HOST_CC ?= gcc
+HOST_EXE_EXT =
+ifeq ($(OS),Windows_NT)
+HOST_EXE_EXT = .exe
+endif
+HOST_TEST_BUILD = _build/host-tests/power-gate-policy
+POWER_GATE_POLICY_TEST = $(HOST_TEST_BUILD)/power_gate_policy_test$(HOST_EXE_EXT)
+
+host-test-power-gate-policy: $(POWER_GATE_POLICY_TEST)
+	$(POWER_GATE_POLICY_TEST)
+
+$(HOST_TEST_BUILD):
+	@$(MKDIR) "$@"
+
+$(POWER_GATE_POLICY_TEST): tests/power-gate-policy/power_gate_policy_test.c src/power_gate.c src/power_gate.h | $(HOST_TEST_BUILD)
+	$(HOST_CC) -DBOOTLOADER_POWER_GATE_POLICY_TEST -Isrc -o $@ tests/power-gate-policy/power_gate_policy_test.c src/power_gate.c
 
 # Print out the value of a make variable.
 # https://stackoverflow.com/questions/16467718/how-to-print-out-a-variable-in-makefile

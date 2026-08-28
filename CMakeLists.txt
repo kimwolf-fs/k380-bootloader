@@ -1,4 +1,19 @@
 cmake_minimum_required(VERSION 3.17)
+
+option(POWER_GATE_POLICY_TEST_ONLY "Build only the host power gate policy test" OFF)
+if (POWER_GATE_POLICY_TEST_ONLY)
+  project(power_gate_policy_test C)
+  enable_testing()
+  add_executable(power_gate_policy_test
+    tests/power-gate-policy/power_gate_policy_test.c
+    src/power_gate.c
+  )
+  target_compile_definitions(power_gate_policy_test PRIVATE BOOTLOADER_POWER_GATE_POLICY_TEST)
+  target_include_directories(power_gate_policy_test PRIVATE src)
+  add_test(NAME power_gate_policy_test COMMAND power_gate_policy_test)
+  return()
+endif ()
+
 include(CMakePrintHelpers)
 find_package(Python COMPONENTS Interpreter)
 
