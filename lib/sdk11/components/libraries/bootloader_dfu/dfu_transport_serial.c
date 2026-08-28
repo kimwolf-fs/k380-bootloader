@@ -24,6 +24,10 @@
 #include "power_gate.h"
 
 #define MAX_BUFFERS          4u                                                      /**< Maximum number of buffers that can be received queued without being consumed. */
+#define SERIAL_DFU_OP_CODE_RESPONSE       0x10u
+#define SERIAL_DFU_START_PROCEDURE        0x01u
+#define SERIAL_DFU_RECEIVE_APP_PROCEDURE  0x03u
+#define SERIAL_DFU_RESP_VAL_OPER_FAILED   0x06u
 
 /**
  * defgroup Data Packet Queue Access Operation Macros
@@ -179,7 +183,39 @@ static void data_queue_flush(void)
     }
 }
 
-static bool reject_flash_if_power_low(void)
+static uint32_t serial_dfu_response_send(uint8_t procedure, uint8_t response_value)
+{
+    uint8_t * p_tx_buffer;
+    uint32_t err_code;
+
+    err_code = hci_transport_tx_alloc(&p_tx_buffer);
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+
+    p_tx_buffer[0] = SERIAL_DFU_OP_CODE_RESPONSE;
+    p_tx_buffer[1] = procedure;
+    p_tx_buffer[2] = response_value;
+
+    err_code = hci_transport_pkt_write(p_tx_buffer, 3);
+    if (err_code != NRF_SUCCESS)
+    {
+        (void)hci_transport_tx_free();
+    }
+
+    return err_code;
+}
+
+static void serial_dfu_operation_failed_send(uint32_t packet_type)
+{
+    const uint8_t procedure = (packet_type == START_PACKET) ?
+        SERIAL_DFU_START_PROCEDURE : SERIAL_DFU_RECEIVE_APP_PROCEDURE;
+
+    (void)serial_dfu_response_send(procedure, SERIAL_DFU_RESP_VAL_OPER_FAILED);
+}
+
+static bool reject_flash_if_power_low(uint32_t packet_type)
 {
     if (bootloader_power_gate_flash_allowed())
     {
@@ -187,6 +223,7 @@ static bool reject_flash_if_power_low(void)
     }
 
     led_state(STATE_K380_POWER_REJECTED);
+    serial_dfu_operation_failed_send(packet_type);
     return true;
 }
 
@@ -224,7 +261,7 @@ static void process_dfu_packet(void * p_event_data, uint16_t event_size)
                 switch (DATA_QUEUE_ELEMENT_GET_PTYPE(index))
                 {
                     case DATA_PACKET:
-                        if (reject_flash_if_power_low())
+                        if (reject_flash_if_power_low(DATA_PACKET))
                         {
                             retval = data_queue_element_free(index);
                             APP_ERROR_CHECK(retval);
@@ -246,7 +283,7 @@ static void process_dfu_packet(void * p_event_data, uint16_t event_size)
                     case START_PACKET:
                         packet->params.start_packet =
                             (dfu_start_packet_t*)packet->params.data_packet.p_data_packet;
-                        if (reject_flash_if_power_low())
+                        if (reject_flash_if_power_low(START_PACKET))
                         {
                             retval = data_queue_element_free(index);
                             APP_ERROR_CHECK(retval);

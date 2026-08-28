@@ -11,6 +11,10 @@ if (POWER_GATE_POLICY_TEST_ONLY)
   target_compile_definitions(power_gate_policy_test PRIVATE BOOTLOADER_POWER_GATE_POLICY_TEST)
   target_include_directories(power_gate_policy_test PRIVATE src)
   add_test(NAME power_gate_policy_test COMMAND power_gate_policy_test)
+  add_test(NAME task3_source_contract
+    COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task3-source-contract/task3_source_contract.sh)
+  set_tests_properties(task3_source_contract PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
   return()
 endif ()
 

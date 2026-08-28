@@ -218,11 +218,16 @@ extern const uint32_t bootloaderConfig[];
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
-static inline bool is_uf2_block (UF2_Block const *bl)
+static inline bool uf2_block_has_required_magic (UF2_Block const *bl)
 {
   return (bl->magicStart0 == UF2_MAGIC_START0) &&
          (bl->magicStart1 == UF2_MAGIC_START1) &&
-         (bl->magicEnd == UF2_MAGIC_END) &&
+         (bl->magicEnd == UF2_MAGIC_END);
+}
+
+static inline bool is_uf2_block (UF2_Block const *bl)
+{
+  return uf2_block_has_required_magic(bl) &&
          (bl->flags & UF2_FLAG_FAMILYID) &&
          !(bl->flags & UF2_FLAG_NOFLASH) &&
          (bl->payloadSize == UF2_FIRMWARE_BYTES_PER_SECTOR) &&
@@ -422,7 +427,18 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
 {
   UF2_Block *bl = (void*) data;
 
-  if ( !is_uf2_block(bl) ) return -1;
+  if ( !is_uf2_block(bl) ) {
+    if ( uf2_block_has_required_magic(bl) && !(bl->flags & UF2_FLAG_NOFLASH) ) {
+      state->aborted = true;
+    }
+    return -1;
+  }
+
+  if ((bl->numBlocks == 0) || (bl->numBlocks >= MAX_BLOCKS) ||
+      (bl->blockNo >= bl->numBlocks)) {
+    state->aborted = true;
+    return -1;
+  }
 
   switch ( bl->familyID )
   {
@@ -462,6 +478,7 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
         PRINTF("skip writing to MBR\r\n");
       }else
       {
+        state->aborted = true;
         return -1;
       }
     break;
@@ -588,8 +605,11 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
       }
     break;
 
-    // unknown family ID
-    default: return -1;
+    // A structurally valid UF2 block for another family is an invalid update,
+    // unlike ordinary FAT metadata writes which fail is_uf2_block() above.
+    default:
+      state->aborted = true;
+      return -1;
   }
 
   //------------- Update written blocks -------------//
@@ -598,10 +618,12 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
     // Update state num blocks if needed
     if ( state->numBlocks != bl->numBlocks )
     {
-      if ( bl->numBlocks >= MAX_BLOCKS || state->numBlocks )
-        state->numBlocks = 0xffffffff;
-      else
+      if ( state->numBlocks ) {
+        state->aborted = true;
+        return -1;
+      } else {
         state->numBlocks = bl->numBlocks;
+      }
     }
 
     if ( bl->blockNo < MAX_BLOCKS )

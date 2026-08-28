@@ -14,7 +14,17 @@ void bootloader_power_gate_clear_rejected(void) {
   flash_rejected = false;
 }
 
-#ifndef BOOTLOADER_POWER_GATE_POLICY_TEST
+#ifdef BOOTLOADER_POWER_GATE_POLICY_TEST
+static uint16_t test_vddh_mv = UINT16_MAX;
+
+void bootloader_power_gate_test_set_vddh_mv(uint16_t vddh_mv) {
+  test_vddh_mv = vddh_mv;
+}
+
+uint16_t bootloader_power_gate_vddh_mv(void) {
+  return test_vddh_mv;
+}
+#else
 #include "boards.h"
 
 #if NRF_POWER_HAS_VDDH
@@ -69,6 +79,7 @@ uint16_t bootloader_power_gate_vddh_mv(void) {
   return UINT16_MAX;
 #endif
 }
+#endif
 
 bool bootloader_power_gate_usb_power_present(void) {
   return bootloader_power_gate_policy_flash_allowed(
@@ -79,11 +90,12 @@ bool bootloader_power_gate_flash_allowed(void) {
   const bool flash_allowed = bootloader_power_gate_usb_power_present();
   if (!flash_allowed) {
     flash_rejected = true;
+#ifndef BOOTLOADER_POWER_GATE_POLICY_TEST
     PRINTF("VDDH at or below 4.5V, flash writes disabled\r\n");
+#endif
   } else {
     bootloader_power_gate_clear_rejected();
   }
 
   return flash_allowed;
 }
-#endif
