@@ -31,6 +31,10 @@
 #include "nrf_spim.h"
 #endif
 
+#ifdef LED_NEOPIXEL
+#include "neopixel_encoding.h"
+#endif
+
 #define SCHED_MAX_EVENT_DATA_SIZE           sizeof(app_timer_event_t)        /**< Maximum size of scheduler events. */
 #define SCHED_QUEUE_SIZE                    30                               /**< Maximum number of events in the scheduler queue. */
 
@@ -555,10 +559,7 @@ void neopixel_teardown(void) {
   pwm_teardown(NRF_PWM1);
 }
 
-static void neopixel_encode_rgb(uint8_t const *pixels, uint16_t *pos) {
-  // convert RGB to GRB
-  uint8_t grb[BYTE_PER_PIXEL] = {pixels[1], pixels[2], pixels[0]};
-
+static void neopixel_encode_wire_grb(uint8_t const grb[BYTE_PER_PIXEL], uint16_t *pos) {
   for (uint8_t c = 0; c < BYTE_PER_PIXEL; c++) {
     uint8_t const pix = grb[c];
 
@@ -567,6 +568,18 @@ static void neopixel_encode_rgb(uint8_t const *pixels, uint16_t *pos) {
       (*pos)++;
     }
   }
+}
+
+static void neopixel_encode_legacy_color(uint8_t const *pixels, uint16_t *pos) {
+  uint8_t grb[BYTE_PER_PIXEL];
+  neopixel_legacy_word_bytes_to_wire_grb(pixels, grb);
+  neopixel_encode_wire_grb(grb, pos);
+}
+
+static void neopixel_encode_rgb_triplet(uint8_t const *pixels, uint16_t *pos) {
+  uint8_t grb[BYTE_PER_PIXEL];
+  neopixel_rgb_triplet_to_wire_grb(pixels, grb);
+  neopixel_encode_wire_grb(grb, pos);
 }
 
 static void neopixel_show(uint16_t pos) {
@@ -591,7 +604,7 @@ void neopixel_write(uint8_t* pixels) {
   uint16_t pos = 0;    // bit position
 
   for (uint16_t n = 0; n < NEOPIXELS_NUMBER; n++) {
-    neopixel_encode_rgb(pixels, &pos);
+    neopixel_encode_legacy_color(pixels, &pos);
   }
 
   neopixel_show(pos);
@@ -604,7 +617,7 @@ void neopixel_write_pixels(const uint8_t *pixels, uint16_t pixel_count) {
 
   for (uint16_t n = 0; n < NEOPIXELS_NUMBER; n++) {
     uint8_t const *pixel = (n < pixel_count) ? &pixels[n * BYTE_PER_PIXEL] : off;
-    neopixel_encode_rgb(pixel, &pos);
+    neopixel_encode_rgb_triplet(pixel, &pos);
   }
 
   neopixel_show(pos);

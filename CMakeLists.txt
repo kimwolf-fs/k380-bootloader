@@ -29,6 +29,12 @@ if (POWER_GATE_POLICY_TEST_ONLY)
   )
   target_compile_options(task4_status_indicator_compile_test PRIVATE -Wall -Wextra -Werror)
   add_test(NAME task4_status_indicator_compile_test COMMAND task4_status_indicator_compile_test)
+  add_executable(task4_neopixel_encoding_test
+    tests/task4-neopixel-encoding/neopixel_encoding_test.c
+  )
+  target_include_directories(task4_neopixel_encoding_test PRIVATE src/boards)
+  target_compile_options(task4_neopixel_encoding_test PRIVATE -Wall -Wextra -Werror)
+  add_test(NAME task4_neopixel_encoding_test COMMAND task4_neopixel_encoding_test)
   return()
 endif ()
 
