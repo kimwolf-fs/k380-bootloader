@@ -35,6 +35,16 @@ if (POWER_GATE_POLICY_TEST_ONLY)
   target_include_directories(task4_neopixel_encoding_test PRIVATE src/boards)
   target_compile_options(task4_neopixel_encoding_test PRIVATE -Wall -Wextra -Werror)
   add_test(NAME task4_neopixel_encoding_test COMMAND task4_neopixel_encoding_test)
+  add_executable(task5_status_indicator_behavior_test
+    src/boards/k380/status_indicator.c
+    tests/task5-status-indicator-behavior/status_indicator_behavior_test.c
+  )
+  target_include_directories(task5_status_indicator_behavior_test PRIVATE
+    tests/task5-status-indicator-behavior
+    src/boards/k380
+  )
+  target_compile_options(task5_status_indicator_behavior_test PRIVATE -Wall -Wextra -Werror)
+  add_test(NAME task5_status_indicator_behavior_test COMMAND task5_status_indicator_behavior_test)
   return()
 endif ()
 

@@ -140,7 +140,7 @@ else ifeq ($(MCU_SUB_VARIANT),nrf52840)
   ifndef SD_NAME
 		SD_NAME = s140
 	endif
-else ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding,$(MAKECMDGOALS)),)
+else ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior,$(MAKECMDGOALS)),)
   $(error Sub Variant $(MCU_SUB_VARIANT) is unknown)
 endif
 
@@ -346,7 +346,7 @@ CFLAGS += -Wno-unused-parameter -Wno-expansion-to-defined
 # a broken bootloader). The broken headers come from Nordic-supplied zip
 # files and are not trivial to patch so, for now, we'll simply disable the
 # new gcc-11 inter-procedural optimizations.
-ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding,$(MAKECMDGOALS)),)
+ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior,$(MAKECMDGOALS)),)
   ifeq (,$(findstring unrecognized,$(shell $(CC) $(CFLAGS) -fno-ipa-modref 2>&1)))
   CFLAGS += -fno-ipa-modref
   endif
@@ -458,7 +458,7 @@ INC_PATHS = $(addprefix -I,$(IPATH))
 # BUILD TARGETS
 #------------------------------------------------------------------------------
 
-.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding
+.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior
 
 # default target to build
 all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BUILD)/$(MERGED_FILE).hex $(BUILD)/$(MERGED_FILE).zip
@@ -472,6 +472,7 @@ HOST_TEST_BUILD = _build/host-tests/power-gate-policy
 POWER_GATE_POLICY_TEST = $(HOST_TEST_BUILD)/power_gate_policy_test$(HOST_EXE_EXT)
 TASK4_STATUS_INDICATOR_COMPILE_TEST = _build/host-tests/task4-status-indicator-compile/status_indicator_test$(HOST_EXE_EXT)
 TASK4_NEOPIXEL_ENCODING_TEST = _build/host-tests/task4-neopixel-encoding/neopixel_encoding_test$(HOST_EXE_EXT)
+TASK5_STATUS_INDICATOR_BEHAVIOR_TEST = _build/host-tests/task5-status-indicator-behavior/status_indicator_behavior_test$(HOST_EXE_EXT)
 
 host-test-power-gate-policy: $(POWER_GATE_POLICY_TEST)
 	$(POWER_GATE_POLICY_TEST)
@@ -488,6 +489,9 @@ host-test-task4-status-indicator-compile: $(TASK4_STATUS_INDICATOR_COMPILE_TEST)
 host-test-task4-neopixel-encoding: $(TASK4_NEOPIXEL_ENCODING_TEST)
 	$(TASK4_NEOPIXEL_ENCODING_TEST)
 
+host-test-task5-status-indicator-behavior: $(TASK5_STATUS_INDICATOR_BEHAVIOR_TEST)
+	$(TASK5_STATUS_INDICATOR_BEHAVIOR_TEST)
+
 $(HOST_TEST_BUILD):
 	@$(MKDIR) "$@"
 
@@ -501,6 +505,10 @@ $(TASK4_STATUS_INDICATOR_COMPILE_TEST): src/boards/k380/status_indicator.c src/b
 $(TASK4_NEOPIXEL_ENCODING_TEST): tests/task4-neopixel-encoding/neopixel_encoding_test.c src/boards/neopixel_encoding.h
 	@$(MKDIR) "_build/host-tests/task4-neopixel-encoding"
 	$(HOST_CC) -Wall -Wextra -Werror -Isrc/boards -o $@ tests/task4-neopixel-encoding/neopixel_encoding_test.c
+
+$(TASK5_STATUS_INDICATOR_BEHAVIOR_TEST): src/boards/k380/status_indicator.c src/boards/k380/status_indicator.h tests/task5-status-indicator-behavior/boards.h tests/task5-status-indicator-behavior/status_indicator_behavior_test.c
+	@$(MKDIR) "_build/host-tests/task5-status-indicator-behavior"
+	$(HOST_CC) -Wall -Wextra -Werror -Itests/task5-status-indicator-behavior -Isrc/boards/k380 -o $@ src/boards/k380/status_indicator.c tests/task5-status-indicator-behavior/status_indicator_behavior_test.c
 
 # Print out the value of a make variable.
 # https://stackoverflow.com/questions/16467718/how-to-print-out-a-variable-in-makefile

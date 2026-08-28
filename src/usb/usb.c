@@ -43,6 +43,10 @@
  * We must call it within SD's SOC event handler, or set it as power event handler if SD is not enabled. */
 extern void tusb_hal_nrf_power_event(uint32_t event);
 
+#ifdef K380_BOOTLOADER_STATUS_INDICATOR
+static bool _k380_usb_cdc_only = false;
+#endif
+
 // power callback when SD is not enabled
 static void power_event_handler(nrfx_power_usb_evt_t event) {
   tusb_hal_nrf_power_event((uint32_t) event);
@@ -55,6 +59,10 @@ void USBD_IRQHandler(void) {
 
 //------------- IMPLEMENTATION -------------//
 void usb_init(bool cdc_only) {
+#ifdef K380_BOOTLOADER_STATUS_INDICATOR
+  _k380_usb_cdc_only = cdc_only;
+#endif
+
   // 0, 1 is reserved for SD
   NVIC_SetPriority(USBD_IRQn, 2);
 
@@ -115,7 +123,11 @@ void usb_teardown(void) {
 // tinyusb callbacks
 //--------------------------------------------------------------------+
 void tud_mount_cb(void) {
+#ifdef K380_BOOTLOADER_STATUS_INDICATOR
+  led_state(_k380_usb_cdc_only ? STATE_K380_CDC_ONLY : STATE_USB_MOUNTED);
+#else
   led_state(STATE_USB_MOUNTED);
+#endif
   bootloader_mark_usb_mounted();
 }
 

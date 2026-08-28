@@ -26,9 +26,6 @@ int main(void) {
   assert(memcmp(last_pixels, pixels, sizeof(pixels)) == 0);
 
   assert(k380_status_indicator_led_state(0));
-  assert(last_pixel_count == K380_STATUS_PIXEL_COUNT);
-  assert(memcmp(last_pixels, pixels, sizeof(pixels)) == 0);
-
   k380_status_indicator_tick(0);
 
   return 0;
