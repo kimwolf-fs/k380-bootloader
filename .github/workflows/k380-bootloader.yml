@@ -10,6 +10,7 @@ on:
       - "linker/**"
       - "lib/uf2/**"
       - "tools/**"
+      - "tests/**"
       - "Makefile"
       - "CMakeLists.txt"
   push:
@@ -20,6 +21,7 @@ on:
       - "linker/**"
       - "lib/uf2/**"
       - "tools/**"
+      - "tests/**"
       - "Makefile"
       - "CMakeLists.txt"
 
@@ -53,6 +55,49 @@ jobs:
           requests==2.31.0
           intelhex==2.3.0
           setuptools==68.1.2
+
+      - name: Assert K380 source contracts
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          power_gate_h = Path("src/power_gate.h").read_text(encoding="ascii")
+          power_gate_c = Path("src/power_gate.c").read_text(encoding="ascii")
+          board_h = Path("src/boards/k380/board.h").read_text(encoding="ascii")
+          indicator_c = Path("src/boards/k380/status_indicator.c").read_text(encoding="ascii")
+
+          assert re.search(
+              r"^#define BOOTLOADER_POWER_GATE_USB_PRESENT_MV 4500U$",
+              power_gate_h,
+              re.MULTILINE,
+          )
+          assert "SAADC_CH_PSELP_PSELP_VDDHDIV5" in power_gate_c
+          assert "bootloader_power_gate_policy_flash_allowed" in power_gate_c
+          assert not re.search(r"POFTHRVDDH|POFWARN", power_gate_c)
+
+          assert re.search(r"^#define LED_NEOPIXEL PINNUM\(0, 13\)$", board_h, re.MULTILINE)
+          assert re.search(r"^#define NEOPIXELS_NUMBER 4$", board_h, re.MULTILINE)
+          for ws, index in (("WS1", 0), ("WS2", 1), ("WS3", 2), ("WS4", 3)):
+              assert f"K380_{ws}_INDEX = {index}" in indicator_c
+
+          b3 = re.search(
+              r"write_order\[\].*?\{(?P<order>.*?)\};",
+              indicator_c,
+              re.DOTALL,
+          )
+          assert b3 and re.sub(r"\s+", "", b3.group("order")) == (
+              "K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX"
+          )
+          b6 = re.search(
+              r"case STATE_K380_POWER_REJECTED:(?P<body>.*?)(?:\n\s*break;)",
+              indicator_c,
+              re.DOTALL,
+          )
+          assert b6 and "pixels[K380_WS4_INDEX]" in b6.group("body")
+          assert not re.search(r"pixels\[K380_WS[123]_INDEX\]", b6.group("body"))
+          PY
 
       - name: Build K380 Bootloader
         run: |

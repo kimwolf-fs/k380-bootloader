@@ -49,6 +49,10 @@ if (POWER_GATE_POLICY_TEST_ONLY)
     COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task5-source-contract/task5_source_contract.sh)
   set_tests_properties(task5_source_contract PROPERTIES
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
+  add_test(NAME task6_source_contract
+    COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task6-source-contract/task6_source_contract.sh)
+  set_tests_properties(task6_source_contract PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
   return()
 endif ()
 
