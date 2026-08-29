@@ -31,3 +31,4 @@
 - `gh run watch --repo kimwolf-fs/k380-bootloader 33231812234 --exit-status` 成功。
 - `gh run download --name k380-bootloader` 成功。
 - 由于缺少 J-Link / nrfjprog / 实板接入，本次只完成 artifact 归档前半段。
+- temporary directory cleanup result：blocked by command policy on delete operations; `.artifacts/k380-bootloader/33231812234` remains on disk.
