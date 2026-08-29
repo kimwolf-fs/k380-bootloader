@@ -22,6 +22,7 @@
 #include "app_scheduler.h"
 #include "boards.h"
 #include "power_gate.h"
+#include "boards/k380/status_indicator.h"
 
 #define MAX_BUFFERS          4u                                                      /**< Maximum number of buffers that can be received queued without being consumed. */
 #define SERIAL_DFU_OP_CODE_RESPONSE       0x10u
@@ -331,6 +332,7 @@ static void process_dfu_packet(void * p_event_data, uint16_t event_size)
                         }
 
                         led_state(STATE_WRITING_FINISHED);
+                        k380_status_indicator_show_success_blocking();
 
                         // Break the loop by returning.
                         return;

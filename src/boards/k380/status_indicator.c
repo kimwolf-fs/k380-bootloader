@@ -22,6 +22,13 @@ enum k380_status_mode {
 };
 
 enum {
+  K380_STATUS_PRIORITY_OFF = 0,
+  K380_STATUS_PRIORITY_WAITING = 1,
+  K380_STATUS_PRIORITY_CDC_ONLY = 2,
+  K380_STATUS_PRIORITY_WRITE_SUCCESS = 3,
+  K380_STATUS_PRIORITY_WRITE_FAILED = 4,
+  K380_STATUS_PRIORITY_POWER_REJECTED = 5,
+  K380_STATUS_PRIORITY_WRITING = 6,
   K380_BRIGHTNESS_10_PERCENT = 25,
   K380_BRIGHTNESS_20_PERCENT = 51,
   K380_SLOW_BLINK_ON_MS = 1000,
@@ -36,6 +43,7 @@ enum {
 
 static struct k380_rgb k380_status_pixels[K380_STATUS_PIXEL_COUNT];
 static enum k380_status_mode k380_status_mode;
+static uint32_t k380_status_priority;
 static uint32_t k380_current_millis;
 static uint32_t k380_state_start_millis;
 
@@ -70,6 +78,39 @@ static void k380_set_ws123(struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT],
   pixels[K380_WS1_INDEX] = color;
   pixels[K380_WS2_INDEX] = color;
   pixels[K380_WS3_INDEX] = color;
+}
+
+static uint32_t k380_status_priority_for_state(uint32_t state) {
+  switch (state) {
+    case STATE_BOOTLOADER_STARTED:
+    case STATE_USB_MOUNTED:
+      return K380_STATUS_PRIORITY_WAITING;
+
+    case STATE_K380_CDC_ONLY:
+      return K380_STATUS_PRIORITY_CDC_ONLY;
+
+    case STATE_WRITING_FINISHED:
+      return K380_STATUS_PRIORITY_WRITE_SUCCESS;
+
+    case STATE_K380_WRITE_FAILED:
+      return K380_STATUS_PRIORITY_WRITE_FAILED;
+
+    case STATE_K380_POWER_REJECTED:
+      return K380_STATUS_PRIORITY_POWER_REJECTED;
+
+    case STATE_WRITING_STARTED:
+      return K380_STATUS_PRIORITY_WRITING;
+
+    case STATE_USB_UNMOUNTED:
+      return K380_STATUS_PRIORITY_OFF;
+
+    default:
+      return k380_status_priority;
+  }
+}
+
+static bool k380_accept_state(uint32_t state) {
+  return k380_status_priority_for_state(state) >= k380_status_priority;
 }
 
 static void k380_render_status(void) {
@@ -148,8 +189,13 @@ void k380_status_indicator_write(const struct k380_rgb pixels[K380_STATUS_PIXEL_
   neopixel_write_pixels((const uint8_t *)k380_status_pixels, K380_STATUS_PIXEL_COUNT);
 }
 
+void __attribute__((weak)) k380_status_indicator_delay_ms(uint32_t millis) {
+  (void)millis;
+}
+
 void k380_status_indicator_init(void) {
   k380_status_mode = K380_STATUS_OFF;
+  k380_status_priority = K380_STATUS_PRIORITY_OFF;
   k380_current_millis = 0;
   k380_state_start_millis = 0;
   memset(k380_status_pixels, 0, sizeof(k380_status_pixels));
@@ -157,33 +203,44 @@ void k380_status_indicator_init(void) {
 }
 
 bool k380_status_indicator_led_state(uint32_t state) {
+  if (!k380_accept_state(state)) {
+    return true;
+  }
+
   switch (state) {
     case STATE_BOOTLOADER_STARTED:
     case STATE_USB_MOUNTED:
+      k380_status_priority = K380_STATUS_PRIORITY_WAITING;
       k380_set_status_mode(K380_STATUS_WAITING);
       break;
 
     case STATE_K380_CDC_ONLY:
+      k380_status_priority = K380_STATUS_PRIORITY_CDC_ONLY;
       k380_set_status_mode(K380_STATUS_CDC_ONLY);
       break;
 
     case STATE_WRITING_STARTED:
+      k380_status_priority = K380_STATUS_PRIORITY_WRITING;
       k380_set_status_mode(K380_STATUS_WRITING);
       break;
 
     case STATE_WRITING_FINISHED:
+      k380_status_priority = K380_STATUS_PRIORITY_WRITE_SUCCESS;
       k380_set_status_mode(K380_STATUS_WRITE_SUCCESS);
       break;
 
     case STATE_K380_WRITE_FAILED:
+      k380_status_priority = K380_STATUS_PRIORITY_WRITE_FAILED;
       k380_set_status_mode(K380_STATUS_WRITE_FAILED);
       break;
 
     case STATE_K380_POWER_REJECTED:
+      k380_status_priority = K380_STATUS_PRIORITY_POWER_REJECTED;
       k380_set_status_mode(K380_STATUS_POWER_REJECTED);
       break;
 
     case STATE_USB_UNMOUNTED:
+      k380_status_priority = K380_STATUS_PRIORITY_OFF;
       k380_set_status_mode(K380_STATUS_OFF);
       break;
 
@@ -198,6 +255,11 @@ bool k380_status_indicator_led_state(uint32_t state) {
 void k380_status_indicator_tick(uint32_t millis) {
   k380_current_millis = millis;
   k380_render_status();
+}
+
+void k380_status_indicator_show_success_blocking(void) {
+  k380_status_indicator_led_state(STATE_WRITING_FINISHED);
+  k380_status_indicator_delay_ms(K380_SUCCESS_HOLD_MS);
 }
 
 void board_init2(void) {

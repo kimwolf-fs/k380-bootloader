@@ -25,6 +25,7 @@
 #include "tusb.h"
 #include "uf2/uf2.h"
 #include "power_gate.h"
+#include "boards/k380/status_indicator.h"
 
 #if CFG_TUD_MSC
 
@@ -174,8 +175,6 @@ int32_t tud_msc_write10_cb (uint8_t lun, uint32_t lba, uint32_t offset, uint8_t*
 // Callback invoked when WRITE10 command is completed (status received and accepted by host).
 void tud_msc_write10_complete_cb(uint8_t lun)
 {
-  static bool first_write = true;
-
   // abort the DFU, uf2 block failed integrity check
   if ( _wr_state.aborted )
   {
@@ -185,17 +184,9 @@ void tud_msc_write10_complete_cb(uint8_t lun)
     led_state(bootloader_power_gate_rejected() ? STATE_K380_POWER_REJECTED
                                                : STATE_K380_WRITE_FAILED);
     memset(&_wr_state, 0, sizeof(_wr_state));
-    first_write = true;
   }
   else if ( _wr_state.numBlocks )
   {
-    // Start LED writing pattern with first write
-    if (first_write)
-    {
-      first_write = false;
-      led_state(STATE_WRITING_STARTED);
-    }
-
     // All block of uf2 file is complete --> complete DFU process
     if (_wr_state.numWritten >= _wr_state.numBlocks)
     {
@@ -241,6 +232,7 @@ void tud_msc_write10_complete_cb(uint8_t lun)
       bootloader_dfu_update_process(update_status);
 
       led_state(STATE_WRITING_FINISHED);
+      k380_status_indicator_show_success_blocking();
     }
   }
 }

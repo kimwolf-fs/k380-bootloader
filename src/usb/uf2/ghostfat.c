@@ -36,6 +36,7 @@
 #include "bootloader_settings.h"
 #include "bootloader.h"
 #include "power_gate.h"
+#include "boards/k380/status_indicator.h"
 
 //--------------------------------------------------------------------+
 //
@@ -262,6 +263,12 @@ static bool reject_flash_if_power_low(WriteState *state) {
   return true;
 }
 
+static void uf2_write_started_if_needed(WriteState *state) {
+  if (state->numWritten == 0) {
+    led_state(STATE_WRITING_STARTED);
+  }
+}
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
@@ -469,6 +476,8 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
           return -1;
         }
 
+        uf2_write_started_if_needed(state);
+
         PRINTF("Write addr = 0x%08lX, block = %ld (%ld of %ld)\r\n", bl->targetAddr, bl->blockNo, state->numWritten, bl->numBlocks);
         flash_nrf5x_write(bl->targetAddr, bl->data, bl->payloadSize, true);
       }else if ( bl->targetAddr < USER_FLASH_START )
@@ -583,6 +592,8 @@ int write_block (uint32_t block_no, uint8_t *data, WriteState *state)
         if (reject_flash_if_power_low(state)) {
           return -1;
         }
+
+        uf2_write_started_if_needed(state);
 
         uint32_t const offset_addr = BOOTLOADER_ADDR_END-USER_FLASH_END;
         flash_nrf5x_write(bl->targetAddr-offset_addr, bl->data, bl->payloadSize, true);

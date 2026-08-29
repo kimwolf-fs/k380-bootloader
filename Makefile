@@ -140,7 +140,7 @@ else ifeq ($(MCU_SUB_VARIANT),nrf52840)
   ifndef SD_NAME
 		SD_NAME = s140
 	endif
-else ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior,$(MAKECMDGOALS)),)
+else ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior host-test-task5-source-contract,$(MAKECMDGOALS)),)
   $(error Sub Variant $(MCU_SUB_VARIANT) is unknown)
 endif
 
@@ -346,7 +346,7 @@ CFLAGS += -Wno-unused-parameter -Wno-expansion-to-defined
 # a broken bootloader). The broken headers come from Nordic-supplied zip
 # files and are not trivial to patch so, for now, we'll simply disable the
 # new gcc-11 inter-procedural optimizations.
-ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior,$(MAKECMDGOALS)),)
+ifeq ($(filter host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior host-test-task5-source-contract,$(MAKECMDGOALS)),)
   ifeq (,$(findstring unrecognized,$(shell $(CC) $(CFLAGS) -fno-ipa-modref 2>&1)))
   CFLAGS += -fno-ipa-modref
   endif
@@ -458,7 +458,7 @@ INC_PATHS = $(addprefix -I,$(IPATH))
 # BUILD TARGETS
 #------------------------------------------------------------------------------
 
-.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior
+.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior host-test-task5-source-contract
 
 # default target to build
 all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BUILD)/$(MERGED_FILE).hex $(BUILD)/$(MERGED_FILE).zip
@@ -491,6 +491,9 @@ host-test-task4-neopixel-encoding: $(TASK4_NEOPIXEL_ENCODING_TEST)
 
 host-test-task5-status-indicator-behavior: $(TASK5_STATUS_INDICATOR_BEHAVIOR_TEST)
 	$(TASK5_STATUS_INDICATOR_BEHAVIOR_TEST)
+
+host-test-task5-source-contract:
+	sh tests/task5-source-contract/task5_source_contract.sh
 
 $(HOST_TEST_BUILD):
 	@$(MKDIR) "$@"

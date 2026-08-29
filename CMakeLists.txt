@@ -45,6 +45,10 @@ if (POWER_GATE_POLICY_TEST_ONLY)
   )
   target_compile_options(task5_status_indicator_behavior_test PRIVATE -Wall -Wextra -Werror)
   add_test(NAME task5_status_indicator_behavior_test COMMAND task5_status_indicator_behavior_test)
+  add_test(NAME task5_source_contract
+    COMMAND sh ${CMAKE_CURRENT_LIST_DIR}/tests/task5-source-contract/task5_source_contract.sh)
+  set_tests_properties(task5_source_contract PROPERTIES
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR})
   return()
 endif ()
 

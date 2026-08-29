@@ -60,6 +60,7 @@
 #include "nrf_error.h"
 
 #include "boards.h"
+#include "boards/k380/status_indicator.h"
 
 #include "pstorage_platform.h"
 #include "nrf_mbr.h"
@@ -194,6 +195,7 @@ int main(void) {
     bootloader_dfu_sd_update_finalize();
 
     led_state(STATE_WRITING_FINISHED);
+    k380_status_indicator_show_success_blocking();
   }
 
   // Check all inputs and enter DFU if needed
@@ -557,6 +559,12 @@ void SD_EVT_IRQHandler(void) {
   // Use App Scheduler to defer handling code in non-isr context
   app_sched_event_put(NULL, 0, proc_sd_task);
 }
+
+#ifdef K380_BOOTLOADER_STATUS_INDICATOR
+void k380_status_indicator_delay_ms(uint32_t millis) {
+  NRFX_DELAY_MS(millis);
+}
+#endif
 
 //--------------------------------------------------------------------+
 // Error Handler
