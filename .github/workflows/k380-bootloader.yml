@@ -63,10 +63,10 @@ jobs:
           import re
           from pathlib import Path
 
-          power_gate_h = Path("src/power_gate.h").read_text(encoding="ascii")
-          power_gate_c = Path("src/power_gate.c").read_text(encoding="ascii")
-          board_h = Path("src/boards/k380/board.h").read_text(encoding="ascii")
-          indicator_c = Path("src/boards/k380/status_indicator.c").read_text(encoding="ascii")
+          power_gate_h = Path("src/power_gate.h").read_text(encoding="utf-8")
+          power_gate_c = Path("src/power_gate.c").read_text(encoding="utf-8")
+          board_h = Path("src/boards/k380/board.h").read_text(encoding="utf-8")
+          indicator_c = Path("src/boards/k380/status_indicator.c").read_text(encoding="utf-8")
 
           assert re.search(
               r"^#define BOOTLOADER_POWER_GATE_USB_PRESENT_MV 4500U$",
