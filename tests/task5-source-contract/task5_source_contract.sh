@@ -18,7 +18,7 @@ grep -q "#define K380_SUCCESS_HOLD_MS 3600U" "$indicator_h" ||
   fail "B4 success hold must be 3600 ms"
 grep -q "k380_status_indicator_show_success_blocking" "$indicator_h" ||
   fail "B4 blocking success helper is not declared"
-grep -q "k380_status_indicator_delay_ms(K380_SUCCESS_HOLD_MS)" "$indicator_c" ||
+grep -q "for (uint32_t elapsed = 0; elapsed < K380_SUCCESS_HOLD_MS; elapsed += 100)" "$indicator_c" ||
   fail "B4 helper does not hold for the configured success duration"
 
 grep -q "k380_status_priority_for_state" "$indicator_c" ||

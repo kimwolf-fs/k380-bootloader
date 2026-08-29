@@ -103,6 +103,7 @@ static void test_b4_green_double_flash(void) {
   };
 
   reset_indicator();
+  assert(k380_status_indicator_led_state(STATE_WRITING_STARTED));
   assert(k380_status_indicator_led_state(STATE_WRITING_FINISHED));
   expect_pixels(on);
   k380_status_indicator_tick(100);
@@ -178,6 +179,7 @@ static void test_lower_priority_states_do_not_override_terminal_hints(void) {
   expect_pixels(b5_on);
 
   reset_indicator();
+  assert(k380_status_indicator_led_state(STATE_WRITING_STARTED));
   assert(k380_status_indicator_led_state(STATE_WRITING_FINISHED));
   assert(k380_status_indicator_led_state(STATE_USB_MOUNTED));
   expect_pixels(b4_on);
@@ -189,6 +191,8 @@ static void test_success_helper_holds_b4_for_three_double_flash_cycles(void) {
   };
 
   reset_indicator();
+  assert(k380_status_indicator_led_state(STATE_WRITING_STARTED));
+  assert(k380_status_indicator_led_state(STATE_WRITING_FINISHED));
   k380_status_indicator_show_success_blocking();
   assert(total_delay_ms == 3600);
   expect_pixels(b4_on);

@@ -110,6 +110,11 @@ static uint32_t k380_status_priority_for_state(uint32_t state) {
 }
 
 static bool k380_accept_state(uint32_t state) {
+  if (state == STATE_WRITING_FINISHED) {
+    return k380_status_mode == K380_STATUS_WRITING ||
+           k380_status_mode == K380_STATUS_WRITE_SUCCESS;
+  }
+
   return k380_status_priority_for_state(state) >= k380_status_priority;
 }
 
@@ -258,8 +263,15 @@ void k380_status_indicator_tick(uint32_t millis) {
 }
 
 void k380_status_indicator_show_success_blocking(void) {
+  uint32_t const start = k380_current_millis;
   k380_status_indicator_led_state(STATE_WRITING_FINISHED);
-  k380_status_indicator_delay_ms(K380_SUCCESS_HOLD_MS);
+
+  for (uint32_t elapsed = 0; elapsed < K380_SUCCESS_HOLD_MS; elapsed += 100) {
+    k380_status_indicator_tick(start + elapsed);
+    k380_status_indicator_delay_ms(100);
+  }
+
+  k380_status_indicator_tick(start + K380_SUCCESS_HOLD_MS);
 }
 
 void board_init2(void) {
