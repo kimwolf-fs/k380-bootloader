@@ -30,7 +30,7 @@ grep -q "K380_WS2_INDEX = 1" "$indicator_c" || fail "WS2 index mapping is missin
 grep -q "K380_WS3_INDEX = 2" "$indicator_c" || fail "WS3 index mapping is missing"
 grep -q "K380_WS4_INDEX = 3" "$indicator_c" || fail "WS4 index mapping is missing"
 write_order="$(sed -n '/write_order\[\]/,/};/p' "$indicator_c" | tr -d '[:space:]')"
-test "$write_order" = "staticconstuint8_twrite_order[]={K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX};" ||
+test "$write_order" = "staticconstuint8_twrite_order[]={K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX,};" ||
   fail "B3 sequence is not WS3 -> WS2 -> WS1"
 power_rejected_body="$(sed -n '/case STATE_K380_POWER_REJECTED:/,/break;/p' "$indicator_c")"
 printf '%s\n' "$power_rejected_body" | grep -q "pixels\[K380_WS4_INDEX\]" ||

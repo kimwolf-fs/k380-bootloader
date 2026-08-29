@@ -88,7 +88,7 @@ jobs:
               re.DOTALL,
           )
           assert b3 and re.sub(r"\s+", "", b3.group("order")) == (
-              "K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX"
+              "K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX,"
           )
           b6 = re.search(
               r"case STATE_K380_POWER_REJECTED:(?P<body>.*?)(?:\n\s*break;)",
