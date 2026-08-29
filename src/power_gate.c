@@ -27,7 +27,7 @@ uint16_t bootloader_power_gate_vddh_mv(void) {
 #else
 #include "boards.h"
 
-#if NRF_POWER_HAS_VDDH
+#if defined(NRF52840_XXAA)
 #define BOOTLOADER_POWER_GATE_SAADC_FULL_SCALE_MV 3600U
 #define BOOTLOADER_POWER_GATE_VDDH_DIVIDER       5U
 #define BOOTLOADER_POWER_GATE_SAADC_DENOMINATOR 1024U
@@ -38,7 +38,7 @@ void bootloader_power_gate_init(void) {
 }
 
 uint16_t bootloader_power_gate_vddh_mv(void) {
-#if NRF_POWER_HAS_VDDH
+#if defined(NRF52840_XXAA)
   volatile int16_t raw = 0;
 
   NRF_SAADC->ENABLE = SAADC_ENABLE_ENABLE_Enabled << SAADC_ENABLE_ENABLE_Pos;
