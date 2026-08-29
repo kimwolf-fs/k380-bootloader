@@ -91,11 +91,11 @@ jobs:
               "K380_WS3_INDEX,K380_WS2_INDEX,K380_WS1_INDEX,"
           )
           b6 = re.search(
-              r"case STATE_K380_POWER_REJECTED:(?P<body>.*?)(?:\n\s*break;)",
+              r"case K380_STATUS_POWER_REJECTED:(?P<body>.*?)(?:\n\s*break;)",
               indicator_c,
               re.DOTALL,
           )
-          assert b6 and "pixels[K380_WS4_INDEX]" in b6.group("body")
+          assert b6 and "pixels[K380_WS4_INDEX] = k380_red_20;" in b6.group("body")
           assert not re.search(r"pixels\[K380_WS[123]_INDEX\]", b6.group("body"))
           PY
 
