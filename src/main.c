@@ -120,6 +120,12 @@ extern void tusb_hal_nrf_power_event(uint32_t event);
 #define BLEGATTS_HVN_QSIZE              12
 #define BLEGATTC_WRCMD_QSIZE            2
 
+#if defined(K380_BOOTLOADER_LED_TEST_FIRMWARE)
+#define K380_BOOTLOADER_UNUSED __attribute__((unused))
+#else
+#define K380_BOOTLOADER_UNUSED
+#endif
+
 //--------------------------------------------------------------------+
 //
 //--------------------------------------------------------------------+
@@ -151,16 +157,71 @@ static bool k380_del_recovery_pressed(void) {
 #endif
 }
 
+#ifdef K380_BOOTLOADER_LED_TEST_FIRMWARE
+static uint32_t k380_led_test_next_state(uint32_t state) {
+  switch (state) {
+    case STATE_BOOTLOADER_STARTED:
+    case STATE_USB_MOUNTED:
+      return STATE_K380_CDC_ONLY;
+
+    case STATE_K380_CDC_ONLY:
+      return STATE_WRITING_STARTED;
+
+    case STATE_WRITING_STARTED:
+      return STATE_WRITING_FINISHED;
+
+    case STATE_WRITING_FINISHED:
+      return STATE_K380_WRITE_FAILED;
+
+    case STATE_K380_WRITE_FAILED:
+      return STATE_K380_POWER_REJECTED;
+
+    case STATE_K380_POWER_REJECTED:
+    default:
+      return STATE_USB_MOUNTED;
+  }
+}
+
+static void k380_led_test_wait_for_release(void) {
+  while (k380_del_recovery_pressed()) {
+    NRFX_DELAY_MS(20);
+  }
+}
+
+static void k380_led_test_run(void) {
+  uint32_t state = STATE_BOOTLOADER_STARTED;
+  bool was_pressed = false;
+
+  PRINTF("K380 LED test firmware: Del cycles B1-B6\r\n");
+  led_state(state);
+
+  for (;;) {
+    bool const pressed = k380_del_recovery_pressed();
+
+    if (pressed && !was_pressed) {
+      state = k380_led_test_next_state(state);
+      led_state(state);
+      k380_led_test_wait_for_release();
+      was_pressed = false;
+    } else {
+      was_pressed = pressed;
+    }
+
+    NRFX_DELAY_MS(20);
+  }
+}
+#endif
+
 // The SoftDevice must only be initialized if a chip reset has occurred.
 // Soft reset (jump ) from application must not reinitialize the SoftDevice.
-static void mbr_init_sd(void) {
+static void K380_BOOTLOADER_UNUSED mbr_init_sd(void) {
   PRINTF("SD_MBR_COMMAND_INIT_SD\r\n");
   sd_mbr_command_t com = {.command = SD_MBR_COMMAND_INIT_SD};
   sd_mbr_command(&com);
 }
 
 // Disable the SoftDevice if it is enabled.
-static void disable_softdevice(void) {
+static void K380_BOOTLOADER_UNUSED disable_softdevice(void) {
   uint8_t sd_enabled = 0;
   sd_softdevice_is_enabled(&sd_enabled);
   if (sd_enabled == 1) {
@@ -182,6 +243,11 @@ int main(void) {
   BOOTLOADER_VERSION_REGISTER = (MK_BOOTLOADER_VERSION);
 
   board_init();
+
+#ifdef K380_BOOTLOADER_LED_TEST_FIRMWARE
+  // LED-only test image: stay in the bootloader indicator loop and use Del to step states.
+  k380_led_test_run();
+#else
   bootloader_init();
   bootloader_power_gate_init();
   PRINTF("Bootloader Start\r\n");
@@ -242,9 +308,10 @@ int main(void) {
   }
   
   NVIC_SystemReset();
+#endif
 }
 
-static void check_dfu_mode(void) {
+static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
   uint32_t const gpregret = NRF_POWER->GPREGRET;
 
   // SD is already Initialized in case of BOOTLOADER_DFU_OTA_MAGIC
@@ -330,7 +397,7 @@ static void check_dfu_mode(void) {
 
 // Initializes the SoftDevice by following SD specs section
 // "Master Boot Record and SoftDevice initializaton procedure"
-static uint32_t ble_stack_init(void) {
+static uint32_t K380_BOOTLOADER_UNUSED ble_stack_init(void) {
   // Forward vector table to bootloader address so that we can handle BLE events
   sd_softdevice_vector_table_base_set(BOOTLOADER_REGION_START);
 

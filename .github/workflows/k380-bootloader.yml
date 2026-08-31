@@ -2,6 +2,15 @@ name: K380 Bootloader
 
 on:
   workflow_dispatch:
+    inputs:
+      build_variant:
+        description: Build variant to produce
+        required: false
+        default: production
+        type: choice
+        options:
+          - production
+          - ledtest
   pull_request:
     branches: [k380]
     paths:
@@ -56,6 +65,27 @@ jobs:
           intelhex==2.3.0
           setuptools==68.1.2
 
+      - name: Resolve build variant
+        run: |
+          set -euxo pipefail
+          BUILD_VARIANT="${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_variant || 'production' }}"
+          case "$BUILD_VARIANT" in
+            ledtest)
+              echo "BUILD_VARIANT=ledtest" >> "$GITHUB_ENV"
+              echo "BUILD_DIR=_build/build-k380-ledtest" >> "$GITHUB_ENV"
+              echo "BIN_DIR=_bin/k380-ledtest" >> "$GITHUB_ENV"
+              echo "ARTIFACT_NAME=k380-bootloader-ledtest" >> "$GITHUB_ENV"
+              echo "MAKE_TARGET=led-test" >> "$GITHUB_ENV"
+              ;;
+            production|*)
+              echo "BUILD_VARIANT=production" >> "$GITHUB_ENV"
+              echo "BUILD_DIR=_build/build-k380" >> "$GITHUB_ENV"
+              echo "BIN_DIR=_bin/k380" >> "$GITHUB_ENV"
+              echo "ARTIFACT_NAME=k380-bootloader" >> "$GITHUB_ENV"
+              echo "MAKE_TARGET=all" >> "$GITHUB_ENV"
+              ;;
+          esac
+
       - name: Assert K380 source contracts
         run: |
           set -euxo pipefail
@@ -102,22 +132,29 @@ jobs:
       - name: Build K380 Bootloader
         run: |
           set -euxo pipefail
-          make BOARD=k380 all
-          make BOARD=k380 copy-artifact
+          if [ "$MAKE_TARGET" = "led-test" ]; then
+            make BOARD=k380 led-test
+          else
+            make BOARD=k380 all
+            make BOARD=k380 copy-artifact
+          fi
 
       - name: Collect and validate artifacts
         run: |
           set -euxo pipefail
-          mkdir -p _bin/k380
-          cp _build/build-k380/k380_bootloader-*.hex _bin/k380/
-          cp _build/build-k380/k380_bootloader-*.out.map _bin/k380/
+          mkdir -p "$BIN_DIR"
+          cp "$BUILD_DIR"/k380_bootloader-*.hex "$BIN_DIR"/
+          cp "$BUILD_DIR"/k380_bootloader-*.out.map "$BIN_DIR"/
           python3 - <<'PY'
           import ast
           import re
           import subprocess
+          import os
           from pathlib import Path
 
           from intelhex import IntelHex
+
+          bin_dir = Path(os.environ["BIN_DIR"])
 
           def make_value(name):
               output = subprocess.run(
@@ -214,7 +251,7 @@ jobs:
               f"unexpected application length: 0x{application_end - application_start:08X}"
           )
 
-          Path("_bin/k380/k380-memory-layout.txt").write_text(
+          (bin_dir / "k380-memory-layout.txt").write_text(
               "mbr_flash_start=0x%08X\n"
               "mbr_flash_end=0x%08X\n"
               "s140_6.1.1_flash_start=0x%08X\n"
@@ -240,21 +277,21 @@ jobs:
               encoding="ascii",
           )
           PY
-          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.hex' -print -quit)"
-          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'update-k380_bootloader-*_nosd.uf2' -print -quit)"
-          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.zip' -print -quit)"
-          raw_hex_count="$(find _bin/k380 -maxdepth 1 -type f \
+          test -n "$(find "$BIN_DIR" -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.hex' -print -quit)"
+          test -n "$(find "$BIN_DIR" -maxdepth 1 -type f -name 'update-k380_bootloader-*_nosd.uf2' -print -quit)"
+          test -n "$(find "$BIN_DIR" -maxdepth 1 -type f -name 'k380_bootloader-*_s140_6.1.1.zip' -print -quit)"
+          raw_hex_count="$(find "$BIN_DIR" -maxdepth 1 -type f \
             -name 'k380_bootloader-*.hex' \
             ! -name '*_nosd.hex' \
             ! -name '*_s140_*.hex' | wc -l)"
           test "$raw_hex_count" -eq 1
-          test -n "$(find _bin/k380 -maxdepth 1 -type f -name 'k380_bootloader-*.out.map' -print -quit)"
-          test -s _bin/k380/k380-memory-layout.txt
-          find _bin/k380 -maxdepth 1 -type f -printf '%f\n' | sort
+          test -n "$(find "$BIN_DIR" -maxdepth 1 -type f -name 'k380_bootloader-*.out.map' -print -quit)"
+          test -s "$BIN_DIR"/k380-memory-layout.txt
+          find "$BIN_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
 
       - name: Upload K380 Bootloader artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: k380-bootloader
-          path: _bin/k380
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ env.BIN_DIR }}
           if-no-files-found: error

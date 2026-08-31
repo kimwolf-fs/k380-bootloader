@@ -60,8 +60,14 @@ endif
 
 GIT_VERSION := $(shell git describe --dirty --always --tags)
 
+# LED test builds keep a separate suffix so they do not collide with production artifacts.
+BUILD_SUFFIX :=
+ifeq ($(K380_BOOTLOADER_LED_TEST_FIRMWARE),1)
+  BUILD_SUFFIX := -ledtest
+endif
+
 # compiled file name
-OUT_NAME = $(BOARD)_bootloader-$(GIT_VERSION)
+OUT_NAME = $(BOARD)_bootloader$(BUILD_SUFFIX)-$(GIT_VERSION)
 
 # merged file = compiled + sd
 MERGED_FILE = $(OUT_NAME)_$(SD_NAME)_$(SD_VERSION)
@@ -116,8 +122,8 @@ BMP_PORT ?= $(shell ls -1 /dev/cu.usbmodem????????1 | head -1)
 GDB_BMP = $(GDB) -ex 'target extended-remote $(BMP_PORT)' -ex 'monitor swdp_scan' -ex 'attach 1'
 
 # Build directory
-BUILD = _build/build-$(BOARD)
-BIN = _bin/$(BOARD)
+BUILD = _build/build-$(BOARD)$(BUILD_SUFFIX)
+BIN = _bin/$(BOARD)$(BUILD_SUFFIX)
 
 # MCU_SUB_VARIANT can be nrf52 (nrf52832), nrf52833, nrf52840
 ifeq ($(MCU_SUB_VARIANT),nrf52)
@@ -458,10 +464,13 @@ INC_PATHS = $(addprefix -I,$(IPATH))
 # BUILD TARGETS
 #------------------------------------------------------------------------------
 
-.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior host-test-task5-source-contract host-test-task6-source-contract
+.PHONY: all clean flash flash-dfu flash-sd flash-mbr dfu-flash sd mbr gdbflash gdb led-test host-test-power-gate-policy host-test-task3-source-contract host-test-task4-source-contract host-test-task4-status-indicator-compile host-test-task4-neopixel-encoding host-test-task5-status-indicator-behavior host-test-task5-source-contract host-test-task6-source-contract
 
 # default target to build
 all: $(BUILD)/$(OUT_NAME).out $(BUILD)/$(OUT_NAME)_nosd.hex $(BUILD)/update-$(OUT_NAME)_nosd.uf2 $(BUILD)/$(MERGED_FILE).hex $(BUILD)/$(MERGED_FILE).zip
+
+led-test:
+	$(MAKE) BOARD=$(BOARD) K380_BOOTLOADER_LED_TEST_FIRMWARE=1 all copy-artifact
 
 HOST_CC ?= gcc
 HOST_EXE_EXT =
