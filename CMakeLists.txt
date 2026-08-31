@@ -89,6 +89,7 @@ option(DEFAULT_TO_OTA_DFU "Default to OTA DFU instead of Serial DFU" OFF)
 option(SIGNED_FW "Enable signed firmware verification" OFF)
 option(DUALBANK_FW "Enable dual bank DFU support" OFF)
 option(FORCE_UF2 "Force UF2 support even with SIGNED_FW" OFF)
+option(K380_BOOTLOADER_LED_TEST_FIRMWARE "Build the LED test firmware" OFF)
 set(SIGNED_FW_QX "" CACHE STRING "Public key Qx (comma-separated bytes)")
 set(SIGNED_FW_QY "" CACHE STRING "Public key Qy (comma-separated bytes)")
 
@@ -254,6 +255,10 @@ endif ()
 
 if (FORCE_UF2)
   target_compile_definitions(bootloader PUBLIC FORCE_UF2)
+endif ()
+
+if (K380_BOOTLOADER_LED_TEST_FIRMWARE)
+  target_compile_definitions(bootloader PUBLIC K380_BOOTLOADER_LED_TEST_FIRMWARE=1)
 endif ()
 
 if (DEFAULT_TO_OTA_DFU)
