@@ -64,6 +64,7 @@ GIT_VERSION := $(shell git describe --dirty --always --tags)
 BUILD_SUFFIX :=
 ifeq ($(K380_BOOTLOADER_LED_TEST_FIRMWARE),1)
   BUILD_SUFFIX := -ledtest
+  CFLAGS += -DK380_BOOTLOADER_LED_TEST_FIRMWARE=1
 endif
 
 # compiled file name
