@@ -185,9 +185,18 @@ static uint32_t k380_led_test_next_state(uint32_t state) {
 }
 
 static void k380_led_test_show_state(uint32_t state) {
-  // Reset the indicator state so each press can display the next step.
-  k380_status_indicator_init();
   led_state(state);
+}
+
+static void k380_led_test_advance_state(uint32_t *state) {
+  if (*state == STATE_K380_POWER_REJECTED) {
+    k380_status_indicator_init();
+    *state = STATE_BOOTLOADER_STARTED;
+  } else {
+    *state = k380_led_test_next_state(*state);
+  }
+
+  k380_led_test_show_state(*state);
 }
 
 static void k380_led_test_wait_for_release(void) {
@@ -207,8 +216,7 @@ static void k380_led_test_run(void) {
     bool const pressed = k380_del_recovery_pressed();
 
     if (pressed && !was_pressed) {
-      state = k380_led_test_next_state(state);
-      k380_led_test_show_state(state);
+      k380_led_test_advance_state(&state);
       k380_led_test_wait_for_release();
       was_pressed = false;
     } else {
