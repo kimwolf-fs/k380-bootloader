@@ -34,6 +34,7 @@
 
 #ifdef NRF_USBD
 #include "tusb.h"
+extern void uf2_msc_service(void);
 #endif
 
 /**@brief Enumeration for specifying current bootloader status.
@@ -149,6 +150,9 @@ static void wait_for_events(void)
     {
       tud_task();
       tud_cdc_write_flush();
+#if CFG_TUD_MSC
+      uf2_msc_service();
+#endif
     }
 
     // Exit startup DFU once USB was actually unplugged (VBUS gone), not on a

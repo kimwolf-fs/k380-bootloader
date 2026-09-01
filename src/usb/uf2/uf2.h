@@ -80,5 +80,6 @@ typedef struct {
 } UF2_Block;
 
 void uf2_init(void);
+void uf2_msc_service(void);
 
 #endif

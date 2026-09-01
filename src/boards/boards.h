@@ -70,6 +70,7 @@
 
 void board_init(void);
 void board_teardown(void);
+uint32_t board_millis(void);
 
 //--------------------------------------------------------------------+
 // LED

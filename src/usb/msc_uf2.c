@@ -25,6 +25,7 @@
 #include "tusb.h"
 #include "uf2/uf2.h"
 #include "power_gate.h"
+#include "boards.h"
 #include "boards/k380/status_indicator.h"
 
 #if CFG_TUD_MSC
@@ -39,6 +40,10 @@
 /* UF2
  *------------------------------------------------------------------*/
 static WriteState _wr_state = { 0 };
+static bool _wr_complete_pending;
+static uint32_t _wr_last_activity_ms;
+
+#define UF2_WRITE_COMPLETE_SETTLE_MS 1500U
 
 void read_block(uint32_t block_no, uint8_t *data);
 int  write_block(uint32_t block_no, uint8_t *data, WriteState *state);
@@ -157,6 +162,7 @@ int32_t tud_msc_write10_cb (uint8_t lun, uint32_t lba, uint32_t offset, uint8_t*
     }
     if ( written > 0 )
     {
+      _wr_last_activity_ms = board_millis();
       bootloader_dfu_activity_mark();
     }
     else if ( written == 0 )
@@ -184,57 +190,78 @@ void tud_msc_write10_complete_cb(uint8_t lun)
     led_state(bootloader_power_gate_rejected() ? STATE_K380_POWER_REJECTED
                                                : STATE_K380_WRITE_FAILED);
     memset(&_wr_state, 0, sizeof(_wr_state));
+    _wr_complete_pending = false;
   }
   else if ( _wr_state.numBlocks )
   {
     // All block of uf2 file is complete --> complete DFU process
     if (_wr_state.numWritten >= _wr_state.numBlocks)
     {
-      dfu_update_status_t update_status;
-      memset(&update_status, 0, sizeof(dfu_update_status_t ));
-
-      if ( _wr_state.update_bootloader )
-      {
-        // update bootloader always end with reset
-        update_status.status_code = DFU_RESET;
-        update_status.restart_into_bootloader = false;
-
-        // Location of current stored new bootloader
-        uint32_t * new_bootloader = (uint32_t *) BOOTLOADER_ADDR_NEW_RECEIVED;
-
-        PRINT_HEX(new_bootloader);
-
-        // skip if there is no bootloader change
-        if ( memcmp(new_bootloader, (uint8_t*) BOOTLOADER_ADDR_START, DFU_BL_IMAGE_MAX_SIZE) )
-        {
-          PRINTF("Coyping new bootloader\r\n");
-
-          sd_mbr_command_t command =
-          {
-            .command = SD_MBR_COMMAND_COPY_BL,
-            .params.copy_bl.bl_src = new_bootloader,
-            .params.copy_bl.bl_len = DFU_BL_IMAGE_MAX_SIZE/4 // size in words
-          };
-
-          // on success, COPY_BL won't return but run the new bootloader right away.
-          sd_mbr_command(&command);
-        }
-
-        PRINTF("bootloader update complete\r\n");
-      }else
-      {
-        // update App
-        update_status.status_code = DFU_UPDATE_APP_COMPLETE;
-
-        PRINTF("Application update complete\r\n");
-      }
-
-      bootloader_dfu_update_process(update_status);
-
-      led_state(STATE_WRITING_FINISHED);
-      k380_status_indicator_show_success_blocking();
+      _wr_complete_pending = true;
+      _wr_last_activity_ms = board_millis();
+      PRINTF("UF2 write complete pending settle\r\n");
     }
   }
+}
+
+static void uf2_finish_update(void) {
+  dfu_update_status_t update_status;
+  memset(&update_status, 0, sizeof(dfu_update_status_t ));
+
+  if ( _wr_state.update_bootloader )
+  {
+    // update bootloader always end with reset
+    update_status.status_code = DFU_RESET;
+    update_status.restart_into_bootloader = false;
+
+    // Location of current stored new bootloader
+    uint32_t * new_bootloader = (uint32_t *) BOOTLOADER_ADDR_NEW_RECEIVED;
+
+    PRINT_HEX(new_bootloader);
+
+    // skip if there is no bootloader change
+    if ( memcmp(new_bootloader, (uint8_t*) BOOTLOADER_ADDR_START, DFU_BL_IMAGE_MAX_SIZE) )
+    {
+      PRINTF("Coyping new bootloader\r\n");
+
+      sd_mbr_command_t command =
+      {
+        .command = SD_MBR_COMMAND_COPY_BL,
+        .params.copy_bl.bl_src = new_bootloader,
+        .params.copy_bl.bl_len = DFU_BL_IMAGE_MAX_SIZE/4 // size in words
+      };
+
+      // on success, COPY_BL won't return but run the new bootloader right away.
+      sd_mbr_command(&command);
+    }
+
+    PRINTF("bootloader update complete\r\n");
+  }else
+  {
+    // update App
+    update_status.status_code = DFU_UPDATE_APP_COMPLETE;
+
+    PRINTF("Application update complete\r\n");
+  }
+
+  bootloader_dfu_update_process(update_status);
+
+  led_state(STATE_WRITING_FINISHED);
+  k380_status_indicator_show_success_blocking();
+  memset(&_wr_state, 0, sizeof(_wr_state));
+  _wr_complete_pending = false;
+}
+
+void uf2_msc_service(void) {
+  if (!_wr_complete_pending) {
+    return;
+  }
+
+  if ((uint32_t)(board_millis() - _wr_last_activity_ms) < UF2_WRITE_COMPLETE_SETTLE_MS) {
+    return;
+  }
+
+  uf2_finish_update();
 }
 
 // Invoked when received SCSI_CMD_READ_CAPACITY_10 and SCSI_CMD_READ_FORMAT_CAPACITY to determine the disk size
