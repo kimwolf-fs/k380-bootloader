@@ -329,6 +329,7 @@ int main(void) {
 
 static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
   uint32_t const gpregret = NRF_POWER->GPREGRET;
+  bool const del_recovery = k380_del_recovery_pressed();
 
   // SD is already Initialized in case of BOOTLOADER_DFU_OTA_MAGIC
   _sd_inited = (gpregret == DFU_MAGIC_OTA_APPJUM);
@@ -336,9 +337,10 @@ static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
   // Start Bootloader in BLE OTA mode
   _ota_dfu = (gpregret == DFU_MAGIC_OTA_APPJUM) || (gpregret == DFU_MAGIC_OTA_RESET);
 
-  // Serial only mode
-  bool const serial_only_dfu = (gpregret == DFU_MAGIC_SERIAL_ONLY_RESET);
-  bool const uf2_dfu         = (gpregret == DFU_MAGIC_UF2_RESET);
+  // Del recovery always enters UF2 mode; it must not be downgraded to CDC-only
+  // by a stale GPREGRET magic from the previous boot.
+  bool const serial_only_dfu = (gpregret == DFU_MAGIC_SERIAL_ONLY_RESET) && !del_recovery;
+  bool const uf2_dfu         = (gpregret == DFU_MAGIC_UF2_RESET) || del_recovery;
   bool const dfu_skip        = (gpregret == DFU_MAGIC_SKIP);
 
   // start either serial, uf2 or ble
@@ -354,7 +356,7 @@ static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
     return;
   }
 
-  dfu_start = dfu_start || k380_del_recovery_pressed();
+  dfu_start = dfu_start || del_recovery;
 
   /*------------- Determine DFU mode (Serial, OTA or normal) -------------*/
   // DFU button pressed

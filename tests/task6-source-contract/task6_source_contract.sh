@@ -5,6 +5,7 @@ power_gate_h="src/power_gate.h"
 power_gate_c="src/power_gate.c"
 board_h="src/boards/k380/board.h"
 indicator_c="src/boards/k380/status_indicator.c"
+main_c="src/main.c"
 
 fail() {
   echo "task6 source contract: $1" >&2
@@ -37,3 +38,10 @@ printf '%s\n' "$power_rejected_body" | grep -q "pixels\[K380_WS4_INDEX\]" ||
   fail "B6 does not map to WS4"
 printf '%s\n' "$power_rejected_body" | grep -Eq "pixels\[K380_WS[123]_INDEX\]" &&
   fail "B6 must be WS4 only"
+
+grep -q "bool const del_recovery = k380_del_recovery_pressed();" "$main_c" ||
+  fail "Del recovery is not sampled once for DFU selection"
+grep -q "gpregret == DFU_MAGIC_SERIAL_ONLY_RESET) && !del_recovery" "$main_c" ||
+  fail "Del recovery does not override CDC-only DFU magic"
+grep -q "gpregret == DFU_MAGIC_UF2_RESET) || del_recovery" "$main_c" ||
+  fail "Del recovery does not force UF2 DFU mode"
