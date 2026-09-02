@@ -7,6 +7,7 @@ usb_c="src/usb/usb.c"
 msc_c="src/usb/msc_uf2.c"
 ghostfat_c="src/usb/uf2/ghostfat.c"
 serial_c="lib/sdk11/components/libraries/bootloader_dfu/dfu_transport_serial.c"
+bootloader_c="lib/sdk11/components/libraries/bootloader_dfu/bootloader.c"
 main_c="src/main.c"
 
 fail() {
@@ -31,9 +32,15 @@ grep -q "STATE_K380_CDC_ONLY : STATE_USB_MOUNTED" "$usb_c" ||
 
 grep -q "led_state(STATE_WRITING_STARTED)" "$ghostfat_c" ||
   fail "UF2 path does not enter B3 before flash writes"
-grep -q "k380_status_indicator_show_success_blocking" "$msc_c" ||
-  fail "UF2 success path does not hold B4"
+grep -q "k380_status_indicator_show_success();" "$msc_c" ||
+  fail "UF2 success path does not start non-blocking B4"
+! grep -q "k380_status_indicator_show_success_blocking" "$msc_c" ||
+  fail "UF2 success path must not block USB service while holding B4"
 grep -q "k380_status_indicator_show_success_blocking" "$serial_c" ||
   fail "CDC DFU success path does not hold B4"
 grep -q "k380_status_indicator_show_success_blocking" "$main_c" ||
   fail "SoftDevice continuation success path does not hold B4"
+grep -q "led_service();" "$bootloader_c" ||
+  fail "bootloader event loop does not service board LED updates"
+grep -q "board_led_completion_pending_override" "$bootloader_c" ||
+  fail "bootloader event loop does not defer terminal state while LED completion is pending"

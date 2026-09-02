@@ -46,6 +46,9 @@ static enum k380_status_mode k380_status_mode;
 static uint32_t k380_status_priority;
 static uint32_t k380_current_millis;
 static uint32_t k380_state_start_millis;
+static uint32_t k380_success_hold_until_millis;
+static bool k380_status_dirty;
+static bool k380_status_flush_active;
 
 static const struct k380_rgb k380_off = {0, 0, 0};
 static const struct k380_rgb k380_blue_10 = {0, 0, K380_BRIGHTNESS_10_PERCENT};
@@ -118,8 +121,7 @@ static bool k380_accept_state(uint32_t state) {
   return k380_status_priority_for_state(state) >= k380_status_priority;
 }
 
-static void k380_render_status(void) {
-  struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT];
+static void k380_render_status(struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT]) {
   uint32_t const elapsed = k380_current_millis - k380_state_start_millis;
 
   k380_clear_pixels(pixels);
@@ -171,13 +173,12 @@ static void k380_render_status(void) {
       break;
   }
 
-  k380_status_indicator_write(pixels);
 }
 
 static void k380_set_status_mode(enum k380_status_mode mode) {
   if (k380_status_mode == K380_STATUS_WRITING &&
       (mode == K380_STATUS_WAITING || mode == K380_STATUS_CDC_ONLY || mode == K380_STATUS_OFF)) {
-    k380_render_status();
+    k380_status_dirty = true;
     return;
   }
 
@@ -186,12 +187,18 @@ static void k380_set_status_mode(enum k380_status_mode mode) {
     k380_state_start_millis = k380_current_millis;
   }
 
-  k380_render_status();
+  k380_status_dirty = true;
 }
 
 void k380_status_indicator_write(const struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT]) {
+  if (k380_status_flush_active) {
+    return;
+  }
+
+  k380_status_flush_active = true;
   memcpy(k380_status_pixels, pixels, sizeof(k380_status_pixels));
   neopixel_write_pixels((const uint8_t *)k380_status_pixels, K380_STATUS_PIXEL_COUNT);
+  k380_status_flush_active = false;
 }
 
 void __attribute__((weak)) k380_status_indicator_delay_ms(uint32_t millis) {
@@ -203,6 +210,9 @@ void k380_status_indicator_init(void) {
   k380_status_priority = K380_STATUS_PRIORITY_OFF;
   k380_current_millis = 0;
   k380_state_start_millis = 0;
+  k380_success_hold_until_millis = 0;
+  k380_status_dirty = true;
+  k380_status_flush_active = false;
   memset(k380_status_pixels, 0, sizeof(k380_status_pixels));
   k380_status_indicator_write(k380_status_pixels);
 }
@@ -250,7 +260,7 @@ bool k380_status_indicator_led_state(uint32_t state) {
       break;
 
     default:
-      k380_render_status();
+      k380_status_dirty = true;
       break;
   }
 
@@ -259,19 +269,45 @@ bool k380_status_indicator_led_state(uint32_t state) {
 
 void k380_status_indicator_tick(uint32_t millis) {
   k380_current_millis = millis;
-  k380_render_status();
+  k380_status_dirty = true;
+}
+
+void k380_status_indicator_service(void) {
+  struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT];
+
+  if (!k380_status_dirty || k380_status_flush_active) {
+    return;
+  }
+
+  k380_status_dirty = false;
+  k380_render_status(pixels);
+  if (memcmp(k380_status_pixels, pixels, sizeof(k380_status_pixels)) != 0) {
+    k380_status_indicator_write(pixels);
+  }
+}
+
+void k380_status_indicator_show_success(void) {
+  k380_status_indicator_led_state(STATE_WRITING_FINISHED);
+  k380_success_hold_until_millis = k380_current_millis + K380_SUCCESS_HOLD_MS;
+}
+
+bool k380_status_indicator_completion_pending(void) {
+  return k380_success_hold_until_millis != 0 &&
+         ((int32_t)(k380_success_hold_until_millis - k380_current_millis) > 0);
 }
 
 void k380_status_indicator_show_success_blocking(void) {
   uint32_t const start = k380_current_millis;
-  k380_status_indicator_led_state(STATE_WRITING_FINISHED);
+  k380_status_indicator_show_success();
 
   for (uint32_t elapsed = 0; elapsed < K380_SUCCESS_HOLD_MS; elapsed += 100) {
     k380_status_indicator_tick(start + elapsed);
+    k380_status_indicator_service();
     k380_status_indicator_delay_ms(100);
   }
 
   k380_status_indicator_tick(start + K380_SUCCESS_HOLD_MS);
+  k380_status_indicator_service();
 }
 
 void board_init2(void) {
@@ -285,4 +321,13 @@ bool board_led_state_override(uint32_t state) {
 bool board_led_tick_override(uint32_t millis) {
   k380_status_indicator_tick(millis);
   return true;
+}
+
+bool board_led_service_override(void) {
+  k380_status_indicator_service();
+  return true;
+}
+
+bool board_led_completion_pending_override(void) {
+  return k380_status_indicator_completion_pending();
 }

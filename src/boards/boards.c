@@ -170,6 +170,14 @@ bool __attribute__((weak)) board_led_tick_override(uint32_t millis) {
   return false;
 }
 
+bool __attribute__((weak)) board_led_service_override(void) {
+  return false;
+}
+
+bool __attribute__((weak)) board_led_completion_pending_override(void) {
+  return false;
+}
+
 void board_teardown(void) {
   // Disable systick, turn off LEDs
   SysTick->CTRL = 0;
@@ -423,6 +431,10 @@ void led_tick(void) {
   #endif
   led_pwm_duty_cycle(LED_SECONDARY, duty_cycle);
   #endif
+}
+
+void led_service(void) {
+  (void)board_led_service_override();
 }
 
 static uint32_t rgb_color;

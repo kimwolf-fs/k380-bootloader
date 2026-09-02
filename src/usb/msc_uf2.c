@@ -246,8 +246,7 @@ static void uf2_finish_update(void) {
 
   bootloader_dfu_update_process(update_status);
 
-  led_state(STATE_WRITING_FINISHED);
-  k380_status_indicator_show_success_blocking();
+  k380_status_indicator_show_success();
   memset(&_wr_state, 0, sizeof(_wr_state));
   _wr_complete_pending = false;
 }

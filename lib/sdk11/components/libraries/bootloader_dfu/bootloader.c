@@ -155,6 +155,8 @@ static void wait_for_events(void)
 #endif
     }
 
+    led_service();
+
     // Exit startup DFU once USB was actually unplugged (VBUS gone), not on a
     // host-side re-enumeration or temporary unmount.
     if (m_cancel_timeout_on_usb && m_usb_was_mounted &&
@@ -163,6 +165,11 @@ static void wait_for_events(void)
       bootloader_timeout_startup_dfu();
     }
 #endif
+
+    if (board_led_completion_pending_override())
+    {
+      continue;
+    }
 
     if ((m_update_status == BOOTLOADER_COMPLETE) ||
         (m_update_status == BOOTLOADER_TIMEOUT) ||
