@@ -37,7 +37,7 @@ void k380_status_indicator_delay_ms(uint32_t millis) {
 
 static void test_b1_blue_slow_blink(void) {
   const struct k380_rgb on[K380_STATUS_PIXEL_COUNT] = {
-    {0, 0, 25}, {0, 0, 25}, {0, 0, 25}, {0, 0, 0}
+    {0, 0, 51}, {0, 0, 51}, {0, 0, 51}, {0, 0, 0}
   };
   const struct k380_rgb off[K380_STATUS_PIXEL_COUNT] = {
     {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}
