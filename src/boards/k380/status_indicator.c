@@ -51,7 +51,7 @@ static bool k380_status_dirty;
 static bool k380_status_flush_active;
 
 static const struct k380_rgb k380_off = {0, 0, 0};
-static const struct k380_rgb k380_blue_10 = {0, 0, K380_BRIGHTNESS_10_PERCENT};
+static const struct k380_rgb k380_blue_20 = {0, 0, K380_BRIGHTNESS_20_PERCENT};
 static const struct k380_rgb k380_purple_10 = {K380_BRIGHTNESS_10_PERCENT, 0, K380_BRIGHTNESS_10_PERCENT};
 static const struct k380_rgb k380_green_10 = {0, K380_BRIGHTNESS_10_PERCENT, 0};
 static const struct k380_rgb k380_red_20 = {K380_BRIGHTNESS_20_PERCENT, 0, 0};
@@ -129,7 +129,7 @@ static void k380_render_status(struct k380_rgb pixels[K380_STATUS_PIXEL_COUNT]) 
   switch (k380_status_mode) {
     case K380_STATUS_WAITING:
       if (k380_blink_is_on(elapsed, K380_SLOW_BLINK_ON_MS, K380_SLOW_BLINK_OFF_MS)) {
-        k380_set_ws123(pixels, k380_blue_10);
+        k380_set_ws123(pixels, k380_blue_20);
       }
       break;
 
