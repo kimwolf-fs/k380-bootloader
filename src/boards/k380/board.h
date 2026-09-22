@@ -16,6 +16,17 @@
  */
 #define K380_RECOVERY_ROW_PIN PINNUM(0, 4)
 #define K380_RECOVERY_COL_PIN PINNUM(0, 31)
+#define K380_MATRIX_ROW_PINS  \
+  {                             \
+    PINNUM(1, 9),               \
+    PINNUM(0, 26),              \
+    PINNUM(0, 6),               \
+    PINNUM(0, 8),               \
+    PINNUM(0, 4),               \
+    PINNUM(0, 12),              \
+    PINNUM(0, 7),               \
+    PINNUM(0, 15),              \
+  }
 
 /*
  * K380 没有用户 DFU 按键或 OTA 按键。冷启动恢复入口由上面的 Del 矩阵坐标触发。

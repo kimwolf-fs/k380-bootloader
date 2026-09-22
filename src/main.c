@@ -144,12 +144,19 @@ static uint32_t ble_stack_init(void);
 
 static bool k380_del_recovery_pressed(void) {
 #if defined(K380_RECOVERY_ROW_PIN) && defined(K380_RECOVERY_COL_PIN)
+  static const uint32_t matrix_row_pins[] = K380_MATRIX_ROW_PINS;
+
   nrf_gpio_cfg_input(K380_RECOVERY_COL_PIN, NRF_GPIO_PIN_PULLDOWN);
-  nrf_gpio_cfg_output(K380_RECOVERY_ROW_PIN);
+  for (size_t i = 0; i < sizeof(matrix_row_pins) / sizeof(matrix_row_pins[0]); ++i) {
+    nrf_gpio_cfg_output(matrix_row_pins[i]);
+    nrf_gpio_pin_clear(matrix_row_pins[i]);
+  }
   nrf_gpio_pin_set(K380_RECOVERY_ROW_PIN);
   NRFX_DELAY_US(100);
   bool const pressed = nrf_gpio_pin_read(K380_RECOVERY_COL_PIN) ? true : false;
-  nrf_gpio_cfg_default(K380_RECOVERY_ROW_PIN);
+  for (size_t i = 0; i < sizeof(matrix_row_pins) / sizeof(matrix_row_pins[0]); ++i) {
+    nrf_gpio_cfg_default(matrix_row_pins[i]);
+  }
   nrf_gpio_cfg_default(K380_RECOVERY_COL_PIN);
   return pressed;
 #else

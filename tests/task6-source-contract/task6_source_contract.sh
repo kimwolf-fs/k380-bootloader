@@ -45,3 +45,10 @@ grep -q "gpregret == DFU_MAGIC_SERIAL_ONLY_RESET) && !del_recovery" "$main_c" ||
   fail "Del recovery does not override CDC-only DFU magic"
 grep -q "gpregret == DFU_MAGIC_UF2_RESET) || del_recovery" "$main_c" ||
   fail "Del recovery does not force UF2 DFU mode"
+
+grep -q "K380_MATRIX_ROW_PINS" "$board_h" ||
+  fail "K380 recovery scan does not declare the complete matrix row list"
+grep -q "K380_MATRIX_ROW_PINS" "$main_c" ||
+  fail "K380 recovery scan does not use the complete matrix row list"
+grep -q "nrf_gpio_pin_clear(matrix_row_pins\[i\])" "$main_c" ||
+  fail "K380 recovery scan does not force non-recovery rows inactive"

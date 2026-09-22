@@ -96,6 +96,7 @@ jobs:
           power_gate_h = Path("src/power_gate.h").read_text(encoding="utf-8")
           power_gate_c = Path("src/power_gate.c").read_text(encoding="utf-8")
           board_h = Path("src/boards/k380/board.h").read_text(encoding="utf-8")
+          main_c = Path("src/main.c").read_text(encoding="utf-8")
           indicator_c = Path("src/boards/k380/status_indicator.c").read_text(encoding="utf-8")
 
           assert re.search(
@@ -109,6 +110,9 @@ jobs:
 
           assert re.search(r"^#define LED_NEOPIXEL PINNUM\(0, 13\)$", board_h, re.MULTILINE)
           assert re.search(r"^#define NEOPIXELS_NUMBER 4$", board_h, re.MULTILINE)
+          assert "K380_MATRIX_ROW_PINS" in board_h
+          assert "K380_MATRIX_ROW_PINS" in main_c
+          assert "nrf_gpio_pin_clear(matrix_row_pins[i])" in main_c
           for ws, index in (("WS1", 0), ("WS2", 1), ("WS3", 2), ("WS4", 3)):
               assert f"K380_{ws}_INDEX = {index}" in indicator_c
 
