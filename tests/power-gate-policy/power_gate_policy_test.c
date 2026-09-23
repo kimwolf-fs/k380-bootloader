@@ -11,6 +11,13 @@ int main(void) {
   assert(bootloader_power_gate_policy_flash_allowed(4501));
   assert(bootloader_power_gate_policy_flash_allowed(5000));
 
+  assert(bootloader_power_gate_bootloader_allowed(true, false));
+  bootloader_power_gate_test_set_vddh_mv(4500);
+  assert(!bootloader_power_gate_bootloader_allowed(true, true));
+  bootloader_power_gate_test_set_vddh_mv(4501);
+  assert(bootloader_power_gate_bootloader_allowed(true, true));
+  assert(bootloader_power_gate_bootloader_allowed(false, true));
+
   bootloader_power_gate_clear_rejected();
   assert(!bootloader_power_gate_rejected());
 

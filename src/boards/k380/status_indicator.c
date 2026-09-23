@@ -310,6 +310,25 @@ void k380_status_indicator_show_success_blocking(void) {
   k380_status_indicator_service();
 }
 
+void k380_status_indicator_show_bootloader_rejected_blocking(void) {
+  const struct k380_rgb red[K380_STATUS_PIXEL_COUNT] = {
+    {K380_BRIGHTNESS_20_PERCENT, 0, 0},
+    {K380_BRIGHTNESS_20_PERCENT, 0, 0},
+    {K380_BRIGHTNESS_20_PERCENT, 0, 0},
+    {0, 0, 0},
+  };
+  const struct k380_rgb off[K380_STATUS_PIXEL_COUNT] = {
+    {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
+  };
+
+  for (uint8_t flash = 0; flash < 3U; flash++) {
+    k380_status_indicator_write(red);
+    k380_status_indicator_delay_ms(K380_FAST_BLINK_ON_MS);
+    k380_status_indicator_write(off);
+    k380_status_indicator_delay_ms(K380_FAST_BLINK_OFF_MS);
+  }
+}
+
 void board_init2(void) {
   k380_status_indicator_init();
 }

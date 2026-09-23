@@ -21,6 +21,7 @@ void k380_status_indicator_write(const struct k380_rgb pixels[K380_STATUS_PIXEL_
 void k380_status_indicator_delay_ms(uint32_t millis);
 void k380_status_indicator_show_success(void);
 void k380_status_indicator_show_success_blocking(void);
+void k380_status_indicator_show_bootloader_rejected_blocking(void);
 bool k380_status_indicator_completion_pending(void);
 
 #endif

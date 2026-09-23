@@ -6,6 +6,14 @@ bool bootloader_power_gate_policy_flash_allowed(uint16_t vddh_mv) {
   return vddh_mv > BOOTLOADER_POWER_GATE_USB_PRESENT_MV;
 }
 
+bool bootloader_power_gate_bootloader_allowed(bool app_valid, bool requested) {
+  if (!requested || !app_valid) {
+    return true;
+  }
+
+  return bootloader_power_gate_usb_power_present();
+}
+
 bool bootloader_power_gate_rejected(void) {
   return flash_rejected;
 }

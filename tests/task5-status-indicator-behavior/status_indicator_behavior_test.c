@@ -270,6 +270,18 @@ static void test_success_helper_is_non_blocking_until_hold_expires(void) {
   assert(!k380_status_indicator_completion_pending());
 }
 
+static void test_bootloader_rejected_helper_flashes_three_red_times(void) {
+  const struct k380_rgb off[K380_STATUS_PIXEL_COUNT] = {
+    {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}
+  };
+
+  reset_indicator();
+  k380_status_indicator_show_bootloader_rejected_blocking();
+  assert(total_delay_ms == 1500);
+  assert(write_count >= 7);
+  expect_pixels(off);
+}
+
 int main(void) {
   test_b1_blue_slow_blink();
   test_b2_purple_slow_blink();
@@ -281,5 +293,6 @@ int main(void) {
   test_success_helper_holds_b4_for_three_double_flash_cycles();
   test_tick_does_not_write_without_service();
   test_success_helper_is_non_blocking_until_hold_expires();
+  test_bootloader_rejected_helper_flashes_three_red_times();
   return 0;
 }

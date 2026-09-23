@@ -274,7 +274,6 @@ int main(void) {
   bootloader_init();
   bootloader_power_gate_init();
   PRINTF("Bootloader Start\r\n");
-  led_state(STATE_BOOTLOADER_STARTED);
 
   // When updating SoftDevice, bootloader will reset before swapping SD
   if (bootloader_dfu_sd_in_progress()) {
@@ -349,6 +348,7 @@ static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
   bool const serial_only_dfu = (gpregret == DFU_MAGIC_SERIAL_ONLY_RESET) && !del_recovery;
   bool const uf2_dfu         = (gpregret == DFU_MAGIC_UF2_RESET) || del_recovery;
   bool const dfu_skip        = (gpregret == DFU_MAGIC_SKIP);
+  bool const valid_app       = bootloader_app_is_valid();
 
   // start either serial, uf2 or ble
   bool dfu_start = _ota_dfu || serial_only_dfu || uf2_dfu;
@@ -376,8 +376,6 @@ static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
   _ota_dfu = _ota_dfu || (button_pressed(BUTTON_DFU) && button_pressed(BUTTON_DFU_OTA));
 #endif
 
-  bool const valid_app = bootloader_app_is_valid();
-
   if (APP_ASKS_FOR_SINGLE_TAP_RESET()) {
     dfu_start = 1;
   }
@@ -391,6 +389,15 @@ static void K380_BOOTLOADER_UNUSED check_dfu_mode(void) {
     _ota_dfu = 1;
   }
 #endif
+
+  if (!bootloader_power_gate_bootloader_allowed(valid_app, dfu_start)) {
+    k380_status_indicator_show_bootloader_rejected_blocking();
+    return;
+  }
+
+  if (dfu_start || !valid_app) {
+    led_state(STATE_BOOTLOADER_STARTED);
+  }
 
   // Enter DFU mode accordingly to input
   if (dfu_start || !valid_app) {
